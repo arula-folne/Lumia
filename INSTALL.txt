@@ -1,0 +1,36 @@
+LumiaMusicView for OBS Studio (Windows x64)
+==========================================
+
+Version layout matches OBS Studio install folders.
+
+Install
+-------
+1. Quit OBS Studio completely.
+2. Extract this zip into your OBS Studio folder, for example:
+
+   C:\Program Files\obs-studio\
+
+   so that you get:
+
+   obs-studio\obs-plugins\64bit\lumia-music-view.dll
+   obs-studio\data\obs-plugins\lumia-music-view\...
+
+3. If Windows asks for administrator permission, allow it.
+4. Start OBS Studio.
+5. Sources -> Add -> LumiaMusicView
+
+Uninstall
+---------
+1. Quit OBS.
+2. Delete:
+
+   obs-plugins\64bit\lumia-music-view.dll
+   data\obs-plugins\lumia-music-view\
+
+License
+-------
+GNU General Public License v3.0 — see LICENSE.
+
+Design / Custom CSS
+-------------------
+https://folne.net/apps/lumia

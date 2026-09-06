@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumia — 曲切り替えアニメデモ</title>
+  <link rel="stylesheet" href="./overlay.css" />
+  <style>
+    html,
+    body {
+      background: #1a1d24;
+    }
+    .demo-note {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 2;
+      color: rgba(255, 255, 255, 0.65);
+      font: 0.85rem/1.4 var(--lumia-font);
+      max-width: 24rem;
+    }
+    .demo-note strong {
+      color: #fff;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body data-anim="fade-left">
+  <p class="demo-note">
+    <strong>曲切り替えデモ</strong><br />
+    まとめてフェードアウト → ジャケット先行 → アルバム／楽曲／アーティストを1文字ずつフェードイン（5秒周期・ジャケット中サイズ）。
+  </p>
+  <div class="stage" id="stage">
+    <div class="card" id="card">
+      <div class="accent" aria-hidden="true"></div>
+      <div class="jacket" aria-hidden="true">
+        <img id="jacket-img" alt="" hidden />
+        <div class="jacket-fallback" id="jacket-fallback"></div>
+      </div>
+      <div class="meta">
+        <div class="text-block">
+          <div class="album" id="album"></div>
+          <div class="title" id="title"></div>
+          <div class="artist" id="artist"></div>
+          <div class="duration" id="duration">0:00 / 0:00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    const TRACKS = [
+      { album: "雨音ログ", title: "静かな周波数", artist: "folne" },
+      { album: "Midnight Drive", title: "Neon Pulse", artist: "Aoi Lane" },
+      { album: "Harbor Lights", title: "Afterglow", artist: "Lumen" },
+    ];
+
+    const EXIT_MS = 420;
+    const TEXT_START_MS = 300;
+    const CHAR_STAGGER_MS = 32;
+    const CHAR_DUR_MS = 280;
+    const HOLD_MS = 5000;
+
+    const card = document.getElementById("card");
+    const albumEl = document.getElementById("album");
+    const titleEl = document.getElementById("title");
+    const artistEl = document.getElementById("artist");
+
+    let index = 0;
+
+    function sleep(ms) {
+      return new Promise((r) => setTimeout(r, ms));
+    }
+
+    function enterDurationMs(charCount) {
+      if (charCount <= 0) return 420;
+      return TEXT_START_MS + (charCount - 1) * CHAR_STAGGER_MS + CHAR_DUR_MS;
+    }
+
+    function fillChars(el, text, startIndex) {
+      el.replaceChildren();
+      const chars = Array.from(text);
+      chars.forEach((ch, i) => {
+        const span = document.createElement("span");
+        span.className = "lumia-char";
+        span.style.setProperty("--i", String(startIndex + i));
+        span.textContent = ch === " " ? "\u00A0" : ch;
+        el.appendChild(span);
+      });
+      return startIndex + chars.length;
+    }
+
+    function applyTrack(track) {
+      let i = 0;
+      i = fillChars(albumEl, track.album, i);
+      i = fillChars(titleEl, track.title, i);
+      i = fillChars(artistEl, track.artist, i);
+      return i;
+    }
+
+    async function cycle() {
+      let charCount = applyTrack(TRACKS[index]);
+      card.classList.add("is-enter");
+      await sleep(enterDurationMs(charCount));
+      card.classList.remove("is-enter");
+
+      for (;;) {
+        await sleep(HOLD_MS);
+        card.classList.remove("is-exit", "is-enter");
+        void card.offsetWidth;
+        card.classList.add("is-exit");
+        await sleep(EXIT_MS);
+        index = (index + 1) % TRACKS.length;
+        charCount = applyTrack(TRACKS[index]);
+        card.classList.remove("is-exit");
+        void card.offsetWidth;
+        card.classList.add("is-enter");
+        await sleep(enterDurationMs(charCount));
+        card.classList.remove("is-enter");
+      }
+    }
+
+    cycle();
+  </script>
+</body>
+</html>

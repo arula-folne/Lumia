@@ -1,0 +1,214 @@
+/*
+  Lumia Overlay — Live x Music x View
+  Layout: accent | jacket | text (bottom-aligned)
+*/
+
+:root {
+  --lumia-text-color: #ffffff;
+  --lumia-text-bg: transparent;
+  --lumia-gap: 0.85rem;
+  --lumia-accent-width: 9px;
+  --lumia-jacket-size: clamp(100px, 20vw, 180px);
+  --lumia-text-height: calc(var(--lumia-jacket-size) * 0.85);
+  --lumia-radius: 0;
+  /* Fixed text sizes (independent of jacket size) */
+  --lumia-album-size: 1.5rem;
+  --lumia-title-size: 2.5rem;
+  --lumia-artist-size: 1.2rem;
+  --lumia-duration-size: 0.95rem;
+  --lumia-text-gap: 0.5rem;
+  --lumia-font: "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif;
+  --lumia-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --lumia-anim-duration: 420ms;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  font-family: var(--lumia-font);
+  color: var(--lumia-text-color);
+  -webkit-font-smoothing: antialiased;
+}
+
+.stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 3.5%;
+}
+
+.card {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lumia-gap);
+  max-width: min(960px, 96vw);
+}
+
+.accent {
+  width: var(--lumia-accent-width);
+  height: var(--lumia-jacket-size);
+  flex-shrink: 0;
+  background: var(--lumia-text-color);
+}
+
+.jacket {
+  position: relative;
+  width: var(--lumia-jacket-size);
+  height: var(--lumia-jacket-size);
+  flex-shrink: 0;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: var(--lumia-shadow);
+  background: linear-gradient(145deg, #3a445c, #1c2333);
+}
+
+.jacket img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.jacket img[hidden] {
+  display: none;
+}
+
+.jacket-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.2), transparent 45%),
+    linear-gradient(145deg, #4a5878, #202838);
+}
+
+.jacket-fallback[hidden] {
+  display: none;
+}
+
+.meta {
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--lumia-text-gap);
+  min-height: var(--lumia-text-height);
+  height: auto;
+  max-width: min(28rem, 52vw);
+  padding: 0;
+  border-radius: 0;
+  background: var(--lumia-text-bg);
+  box-shadow: none;
+}
+
+.album,
+.title,
+.artist,
+.duration {
+  flex-shrink: 0;
+}
+
+.album {
+  font-size: var(--lumia-album-size);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album[hidden],
+.artist[hidden] {
+  display: none !important;
+}
+
+.title {
+  font-size: var(--lumia-title-size);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artist {
+  font-size: var(--lumia-artist-size);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.duration {
+  display: none !important;
+  font-size: var(--lumia-duration-size);
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* Animations driven by body[data-anim] */
+body[data-anim="none"] .card {
+  animation: none;
+}
+
+body[data-anim="fade"] .card.is-enter {
+  animation: lumia-fade var(--lumia-anim-duration) ease both;
+}
+
+body[data-anim="slide"] .card.is-enter {
+  animation: lumia-slide var(--lumia-anim-duration) ease both;
+}
+
+@keyframes lumia-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lumia-slide {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+  --- OBS カスタム CSS の例 ---
+
+  :root {
+    --lumia-text-color: #ffe8a3;
+    --lumia-text-bg: rgba(0, 0, 0, 0.35);
+  }
+
+  .jacket { display: none; }
+  .duration { display: none; }
+*/

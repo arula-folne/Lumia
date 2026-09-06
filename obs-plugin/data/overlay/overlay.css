@@ -1,0 +1,266 @@
+/*
+  Lumia Overlay — Live x Music x View
+  Layout: accent | jacket | text (bottom-aligned)
+*/
+
+:root {
+  --lumia-text-color: #ffffff;
+  --lumia-text-bg: transparent;
+  --lumia-gap: 0.85rem;
+  --lumia-accent-width: 9px;
+  --lumia-jacket-size: 180px;
+  --lumia-text-height: 0px;
+  --lumia-radius: 0;
+  /* Fixed text sizes (independent of jacket size) */
+  --lumia-album-size: 1.5rem;
+  --lumia-title-size: 2.5rem;
+  --lumia-artist-size: 1.2rem;
+  --lumia-duration-size: 0.95rem;
+  --lumia-text-gap: 0.4rem;
+  --lumia-font: "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif;
+  --lumia-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --lumia-jacket-shadow: none;
+  --lumia-jacket-radius: 0;
+  --lumia-text-radius: 0;
+  --lumia-anim-duration: 420ms;
+  --lumia-text-start: 300ms;
+  --lumia-char-stagger: 32ms;
+  --lumia-char-duration: 280ms;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  font-family: var(--lumia-font);
+  color: var(--lumia-text-color);
+  -webkit-font-smoothing: antialiased;
+}
+
+.stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 3.5%;
+}
+
+.card {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lumia-gap);
+  max-width: min(960px, 96vw);
+}
+
+.accent {
+  width: var(--lumia-accent-width);
+  height: var(--lumia-jacket-size);
+  flex-shrink: 0;
+  background: var(--lumia-text-color);
+}
+
+.jacket {
+  position: relative;
+  width: var(--lumia-jacket-size);
+  height: var(--lumia-jacket-size);
+  flex-shrink: 0;
+  border-radius: var(--lumia-jacket-radius);
+  overflow: hidden;
+  box-shadow: var(--lumia-jacket-shadow);
+  background: linear-gradient(145deg, #3a445c, #1c2333);
+}
+
+.jacket img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.jacket img[hidden] {
+  display: none;
+}
+
+.jacket-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.2), transparent 45%),
+    linear-gradient(145deg, #4a5878, #202838);
+}
+
+.jacket-fallback[hidden] {
+  display: none;
+}
+
+.meta {
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--lumia-text-gap);
+  min-height: 0;
+  height: auto;
+  max-width: min(32rem, 58vw);
+  /* Keep padding constant with/without bg or shadow so text does not jump */
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--lumia-text-radius);
+  background: var(--lumia-text-bg);
+  box-shadow: none;
+  overflow: visible;
+}
+
+.album,
+.title,
+.artist,
+.duration {
+  flex-shrink: 0;
+}
+
+.album {
+  font-size: var(--lumia-album-size);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Keep descenders (g, y, p…) inside this row so they do not paint over the next line */
+  padding-bottom: 0.2em;
+}
+
+.album[hidden],
+.artist[hidden] {
+  display: none !important;
+}
+
+.title {
+  font-size: var(--lumia-title-size);
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: 0.2em;
+}
+
+.artist {
+  font-size: var(--lumia-artist-size);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: 0.2em;
+}
+
+.duration {
+  display: none !important;
+  font-size: var(--lumia-duration-size);
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.lumia-char {
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: inherit;
+}
+
+/*
+  Enter: jacket first, then album → title → artist char-by-char from the left.
+  Exit: jacket + text fade out together.
+*/
+body[data-anim="none"] .jacket,
+body[data-anim="none"] .text-block,
+body[data-anim="none"] .lumia-char {
+  animation: none !important;
+}
+
+body[data-anim="fade-left"] .card.is-exit .jacket,
+body[data-anim="fade-left"] .card.is-exit .text-block,
+body[data-anim="fade"] .card.is-exit .jacket,
+body[data-anim="fade"] .card.is-exit .text-block,
+body[data-anim="slide"] .card.is-exit .jacket,
+body[data-anim="slide"] .card.is-exit .text-block {
+  animation: lumia-fade-left-out var(--lumia-anim-duration) ease both;
+}
+
+body[data-anim="fade-left"] .card.is-enter .jacket,
+body[data-anim="fade"] .card.is-enter .jacket,
+body[data-anim="slide"] .card.is-enter .jacket {
+  animation: lumia-fade-left-in var(--lumia-anim-duration) ease both;
+}
+
+body[data-anim="fade-left"] .card.is-enter .lumia-char,
+body[data-anim="fade"] .card.is-enter .lumia-char,
+body[data-anim="slide"] .card.is-enter .lumia-char {
+  animation: lumia-char-fade-in var(--lumia-char-duration) ease both;
+  animation-delay: calc(
+    var(--lumia-text-start) + (var(--i) * var(--lumia-char-stagger))
+  );
+}
+
+@keyframes lumia-fade-left-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-1.25rem);
+  }
+}
+
+@keyframes lumia-fade-left-in {
+  from {
+    opacity: 0;
+    transform: translateX(-1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lumia-char-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.45em);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/*
+  --- OBS カスタム CSS の例 ---
+
+  :root {
+    --lumia-text-color: #ffe8a3;
+    --lumia-text-bg: rgba(0, 0, 0, 0.35);
+  }
+
+  .jacket { display: none; }
+  .duration { display: none; }
+*/

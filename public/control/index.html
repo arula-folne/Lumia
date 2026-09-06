@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumia Control</title>
+  <link rel="stylesheet" href="./control.css" />
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Lumia</h1>
+      <p class="tagline">Live x Music x View</p>
+    </div>
+    <p class="hint">Overlay: <code id="overlay-url"></code></p>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>ライブラリ</h2>
+      <label class="field">
+        <span>親フォルダのパス</span>
+        <input id="root-input" type="text" placeholder="D:\Music\Stream" spellcheck="false" />
+      </label>
+      <div class="row">
+        <button id="btn-load" type="button">読み込む</button>
+        <button id="btn-rescan" type="button" class="ghost">再スキャン</button>
+      </div>
+      <p id="lib-status" class="status">フォルダ未設定</p>
+    </section>
+
+    <section class="panel">
+      <h2>再生</h2>
+      <div class="now">
+        <div class="now-cover" id="now-cover"></div>
+        <div class="now-text">
+          <div id="now-title" class="now-title">—</div>
+          <div id="now-album" class="now-album">—</div>
+          <div id="now-time" class="now-time">0:00 / 0:00</div>
+        </div>
+      </div>
+      <div class="row controls">
+        <button id="btn-prev" type="button" title="前へ">⏮</button>
+        <button id="btn-toggle" type="button" title="再生/一時停止">▶</button>
+        <button id="btn-next" type="button" title="次へ">⏭</button>
+        <label class="check">
+          <input id="chk-shuffle" type="checkbox" checked />
+          シャッフル
+        </label>
+      </div>
+      <p id="play-status" class="status"></p>
+    </section>
+
+    <section class="panel wide">
+      <h2>アルバム / 単曲</h2>
+      <div id="library-list" class="library-list"></div>
+    </section>
+  </main>
+
+  <script src="./control.js" type="module"></script>
+</body>
+</html>

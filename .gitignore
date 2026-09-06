@@ -1,0 +1,8 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+*.log
+obs-plugin/build/
+dist/
+*.zip
+package-lock.json
