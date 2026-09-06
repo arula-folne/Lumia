@@ -139,9 +139,10 @@ body {
   font-weight: 500;
   line-height: 1.3;
   letter-spacing: 0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
   /* Keep descenders (g, y, p…) inside this row so they do not paint over the next line */
   padding-bottom: 0.2em;
 }
@@ -155,9 +156,10 @@ body {
   font-size: var(--lumia-title-size);
   font-weight: 700;
   line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
   padding-bottom: 0.2em;
 }
 
@@ -166,9 +168,10 @@ body {
   font-weight: 500;
   line-height: 1.3;
   letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
   padding-bottom: 0.2em;
 }
 
