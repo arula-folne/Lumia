@@ -1,36 +1,45 @@
-LumiaMusicView for OBS Studio (Windows x64)
-==========================================
+LumiaMusicView — インストール手順（OBS Studio / Windows x64）
+============================================================
 
-Version layout matches OBS Studio install folders.
+【インストール（推奨：インストーラー）】
+1. OBS Studio を終了する
+2. LumiaMusicView-*-windows-x64.exe を実行する
+3. 案内に従い、OBS のインストールフォルダを確認する
+   （通常は C:\Program Files\obs-studio）
+4. インストール完了後、OBS を起動する
+5. ソース → 追加 → LumiaMusicView
 
-Install
--------
-1. Quit OBS Studio completely.
-2. Extract this zip into your OBS Studio folder, for example:
+管理者権限の許可を求められた場合は許可してください。
 
-   C:\Program Files\obs-studio\
 
-   so that you get:
+【手動インストール（zip など）】
+OBS フォルダへ次の配置になるよう展開してください。
 
-   obs-studio\obs-plugins\64bit\lumia-music-view.dll
-   obs-studio\data\obs-plugins\lumia-music-view\...
+  obs-studio\obs-plugins\64bit\lumia-music-view.dll
+  obs-studio\data\obs-plugins\lumia-music-view\...
 
-3. If Windows asks for administrator permission, allow it.
-4. Start OBS Studio.
-5. Sources -> Add -> LumiaMusicView
 
-Uninstall
----------
-1. Quit OBS.
-2. Delete:
+【アンインストール】
+1. OBS を終了する
+2. Windows の「アプリと機能」から LumiaMusicView を削除する
+   または次を手動削除:
+     obs-plugins\64bit\lumia-music-view.dll
+     data\obs-plugins\lumia-music-view\
 
-   obs-plugins\64bit\lumia-music-view.dll
-   data\obs-plugins\lumia-music-view\
 
-License
--------
-GNU General Public License v3.0 — see LICENSE.
+【ライセンス】
+GNU General Public License v3.0 — LICENSE.txt を参照
 
-Design / Custom CSS
--------------------
+
+【デザイン / Custom CSS】
 https://folne.net/apps/lumia
+
+
+--------------------------------------------------
+English (summary)
+--------------------------------------------------
+1. Quit OBS Studio.
+2. Run LumiaMusicView-*-windows-x64.exe and follow the wizard
+   (default folder: C:\Program Files\obs-studio).
+3. Start OBS → Add Source → LumiaMusicView.
+License: GPL-3.0 (see LICENSE.txt).

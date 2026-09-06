@@ -1,4 +1,29 @@
-﻿                    GNU GENERAL PUBLIC LICENSE
+LumiaMusicView — ライセンスについて
+====================================
+
+本ソフトウェア（LumiaMusicView）は、GNU General Public License
+バージョン 3（GPL-3.0）の下で公開されています。
+
+あなたは次のことができます:
+- 本ソフトウェアを自由に利用・複製・改変・再配布すること
+- 改変版を配布すること（ただし GPL-3.0 の条件に従う必要があります）
+
+あなたには次の義務があります（要約）:
+- ソースコードを入手できる状態にすること（バイナリ配布時）
+- 改変した場合はその旨を明示すること
+- 同じ GPL-3.0 の条件で再配布すること
+- 本ライセンス文書を添付すること
+
+本ファイル後半に、公式の英語原文（GNU GPL Version 3）を掲載します。
+法的な効力は英語原文に基づきます。不明点は原文を優先してください。
+
+リポジトリ: https://github.com/arula-folne/Lumia
+デザイン / Custom CSS: https://folne.net/apps/lumia
+
+------------------------------------
+Official English license text follows
+------------------------------------
+                    GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
