@@ -21,7 +21,7 @@ MODULE_EXPORT const char *obs_module_description(void)
 	return "Lumia - Live x Music x View (local music overlay)";
 }
 
-#define DEFAULT_WIDTH 800
+#define DEFAULT_WIDTH 1000
 #define DEFAULT_HEIGHT 250
 #define DEFAULT_CSS \
 	"body { background-color: rgba(0, 0, 0, 0); margin: 0px; overflow: hidden; }"
@@ -168,6 +168,8 @@ static void lumia_configure_browser_settings(obs_data_t *settings, struct lumia_
 	obs_data_set_string(settings, "url", url);
 	obs_data_set_int(settings, "width", ctx->width ? ctx->width : DEFAULT_WIDTH);
 	obs_data_set_int(settings, "height", ctx->height ? ctx->height : DEFAULT_HEIGHT);
+	/* Higher FPS keeps marquee + cover updates sharper in the browser source */
+	obs_data_set_int(settings, "fps", 60);
 	obs_data_set_bool(settings, "shutdown", false);
 	obs_data_set_bool(settings, "restart_when_active", false);
 	/* Overlay is visual-only; audio comes from ffmpeg_source. */

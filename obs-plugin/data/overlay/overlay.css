@@ -1,6 +1,7 @@
 /*
   Lumia Overlay — Live x Music x View
-  Layout: accent | jacket | text (bottom-aligned)
+  Default canvas: 1000 x 250 (OBS source)
+  Layout: accent | jacket | text (bottom-aligned, single-line + marquee)
 */
 
 :root {
@@ -8,7 +9,7 @@
   --lumia-text-bg: transparent;
   --lumia-gap: 0.85rem;
   --lumia-accent-width: 9px;
-  --lumia-jacket-size: 180px;
+  --lumia-jacket-size: 200px;
   --lumia-text-height: 0px;
   --lumia-radius: 0;
   /* Fixed text sizes (independent of jacket size) */
@@ -16,7 +17,7 @@
   --lumia-title-size: 2.5rem;
   --lumia-artist-size: 1.2rem;
   --lumia-duration-size: 0.95rem;
-  --lumia-text-gap: 0.4rem;
+  --lumia-text-gap: 0.35rem;
   --lumia-font: "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif;
   --lumia-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   --lumia-jacket-shadow: none;
@@ -26,6 +27,9 @@
   --lumia-text-start: 300ms;
   --lumia-char-stagger: 32ms;
   --lumia-char-duration: 280ms;
+  --lumia-stage-pad: 12px;
+  --marquee-duration: 12s;
+  --marquee-shift: 0px;
 }
 
 * {
@@ -42,10 +46,17 @@ body {
   background: transparent;
 }
 
+html {
+  /* Prefer crisp glyphs at fixed OBS pixel size */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--lumia-font);
   color: var(--lumia-text-color);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
 }
 
 .stage {
@@ -54,14 +65,16 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
-  padding: 3.5%;
+  padding: var(--lumia-stage-pad);
 }
 
 .card {
   display: flex;
   align-items: flex-end;
   gap: var(--lumia-gap);
-  max-width: min(960px, 96vw);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .accent {
@@ -80,13 +93,20 @@ body {
   overflow: hidden;
   box-shadow: var(--lumia-jacket-shadow);
   background: linear-gradient(145deg, #3a445c, #1c2333);
+  /* Keep cover on whole pixels after enter animation */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .jacket img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .jacket img[hidden] {
@@ -106,6 +126,7 @@ body {
 }
 
 .meta {
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: flex-end;
@@ -118,13 +139,15 @@ body {
   gap: var(--lumia-text-gap);
   min-height: 0;
   height: auto;
-  max-width: min(32rem, 58vw);
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   /* Keep padding constant with/without bg or shadow so text does not jump */
   padding: 0.35rem 0.55rem;
   border-radius: var(--lumia-text-radius);
   background: var(--lumia-text-bg);
   box-shadow: none;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .album,
@@ -132,19 +155,33 @@ body {
 .artist,
 .duration {
   flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.lumia-line {
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.3;
+  padding-bottom: 0.2em;
+}
+
+.lumia-line-track {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+  transform: translateX(0);
+}
+
+.lumia-line.is-marquee .lumia-line-track {
+  animation: lumia-marquee var(--marquee-duration) linear infinite;
 }
 
 .album {
   font-size: var(--lumia-album-size);
   font-weight: 500;
-  line-height: 1.3;
   letter-spacing: 0.03em;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  /* Keep descenders (g, y, p…) inside this row so they do not paint over the next line */
-  padding-bottom: 0.2em;
 }
 
 .album[hidden],
@@ -155,24 +192,12 @@ body {
 .title {
   font-size: var(--lumia-title-size);
   font-weight: 700;
-  line-height: 1.3;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  padding-bottom: 0.2em;
 }
 
 .artist {
   font-size: var(--lumia-artist-size);
   font-weight: 500;
-  line-height: 1.3;
   letter-spacing: 0.02em;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  padding-bottom: 0.2em;
 }
 
 .duration {
@@ -223,6 +248,13 @@ body[data-anim="slide"] .card.is-enter .lumia-char {
   );
 }
 
+/* Pause marquee while enter/exit so char anim stays readable */
+.card.is-enter .lumia-line.is-marquee .lumia-line-track,
+.card.is-exit .lumia-line.is-marquee .lumia-line-track {
+  animation-play-state: paused;
+  transform: translateX(0);
+}
+
 @keyframes lumia-fade-left-out {
   from {
     opacity: 1;
@@ -252,6 +284,22 @@ body[data-anim="slide"] .card.is-enter .lumia-char {
   }
   to {
     opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Hold start → scroll to reveal end → hold → return */
+@keyframes lumia-marquee {
+  0%,
+  14% {
+    transform: translateX(0);
+  }
+  48%,
+  62% {
+    transform: translateX(var(--marquee-shift));
+  }
+  96%,
+  100% {
     transform: translateX(0);
   }
 }
