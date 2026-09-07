@@ -28,6 +28,7 @@
   --lumia-char-stagger: 32ms;
   --lumia-char-duration: 280ms;
   --lumia-stage-pad: 12px;
+  --lumia-ui-scale: 1;
   --marquee-duration: 12s;
   --marquee-shift: 0px;
 }
@@ -65,7 +66,22 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Design canvas 1000×250 — JS scales this with the OBS source size */
+.design-root {
+  width: 1000px;
+  height: 250px;
   padding: var(--lumia-stage-pad);
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  transform-origin: left bottom;
+  /* zoom is set by overlay.js (--lumia-ui-scale via zoom for crisp glyphs) */
+  zoom: var(--lumia-ui-scale, 1);
 }
 
 .card {

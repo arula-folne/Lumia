@@ -1,6 +1,6 @@
-# Package LumiaMusicView installer for GitHub Release (Windows x64 OBS plugin)
+﻿# Package LumiaMusicView installer for GitHub Release (Windows x64 OBS plugin)
 param(
-  [string]$Version = "0.1.3",
+  [string]$Version = "0.1.4",
   [string]$OutDir = "",
   [switch]$AlsoZip
 )
@@ -97,3 +97,4 @@ Remove-Item -Recurse -Force $Stage
 
 Write-Host "Created $ExePath"
 Get-Item $ExePath | Format-List FullName, Length
+

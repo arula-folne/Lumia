@@ -2,24 +2,26 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=1000, height=250, initial-scale=1.0" />
   <title>Lumia Overlay</title>
   <link rel="stylesheet" href="./overlay.css" />
 </head>
 <body data-anim="fade-left">
   <div class="stage" id="stage" hidden>
-    <div class="card" id="card">
-      <div class="accent" aria-hidden="true"></div>
-      <div class="jacket" aria-hidden="true">
-        <img id="jacket-img" alt="" />
-        <div class="jacket-fallback" id="jacket-fallback"></div>
-      </div>
-      <div class="meta">
-        <div class="text-block">
-          <div class="album lumia-line" id="album" hidden></div>
-          <div class="title lumia-line" id="title">Track</div>
-          <div class="artist lumia-line" id="artist" hidden></div>
-          <div class="duration" id="duration">0:00 / 0:00</div>
+    <div class="design-root" id="design">
+      <div class="card" id="card">
+        <div class="accent" aria-hidden="true"></div>
+        <div class="jacket" aria-hidden="true">
+          <img id="jacket-img" alt="" />
+          <div class="jacket-fallback" id="jacket-fallback"></div>
+        </div>
+        <div class="meta">
+          <div class="text-block">
+            <div class="album lumia-line" id="album" hidden></div>
+            <div class="title lumia-line" id="title">Track</div>
+            <div class="artist lumia-line" id="artist" hidden></div>
+            <div class="duration" id="duration">0:00 / 0:00</div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 const stage = document.getElementById("stage");
+const design = document.getElementById("design");
 const card = document.getElementById("card");
 const jacketImg = document.getElementById("jacket-img");
 const jacketFallback = document.getElementById("jacket-fallback");
@@ -7,6 +8,8 @@ const titleEl = document.getElementById("title");
 const artistEl = document.getElementById("artist");
 const durationEl = document.getElementById("duration");
 
+const DESIGN_W = 1000;
+const DESIGN_H = 250;
 const EXIT_MS = 420;
 const JACKET_MS = 420;
 const TEXT_START_MS = 300;
@@ -18,6 +21,16 @@ const MARQUEE_PX_PER_SEC = 38;
 let currentId = null;
 let busy = false;
 let pendingState = null;
+
+function syncUiScale() {
+  if (!design) return;
+  const sx = window.innerWidth / DESIGN_W;
+  const sy = window.innerHeight / DESIGN_H;
+  const raw = Math.min(sx, sy);
+  const snapped = Math.abs(raw - Math.round(raw)) < 0.08 ? Math.round(raw) : raw;
+  const scale = Math.max(0.25, snapped);
+  document.documentElement.style.setProperty("--lumia-ui-scale", String(scale));
+}
 
 function fmt(sec) {
   const s = Math.max(0, Math.floor(sec || 0));
@@ -87,7 +100,6 @@ function setupMarquees() {
     const overflow = Math.ceil(track.scrollWidth - el.clientWidth);
     if (overflow <= 2) continue;
 
-    /* Keyframes spend ~34% of the cycle actually moving each way */
     const moveSec = Math.max(2.5, overflow / MARQUEE_PX_PER_SEC);
     const duration = moveSec / 0.34;
     el.style.setProperty("--marquee-shift", `-${overflow}px`);
@@ -148,6 +160,7 @@ async function runExitEnter(nextState) {
   }
 
   stage.hidden = false;
+  syncUiScale();
   const charCount = applyContent(nextState);
   currentId = nextState.track.id;
   restartEnterAnim();
@@ -225,6 +238,7 @@ async function poll() {
 }
 
 window.addEventListener("resize", () => {
+  syncUiScale();
   if (
     currentId != null &&
     !card.classList.contains("is-enter") &&
@@ -234,5 +248,6 @@ window.addEventListener("resize", () => {
   }
 });
 
+syncUiScale();
 poll();
 setInterval(poll, 250);
