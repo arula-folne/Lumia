@@ -1,6 +1,6 @@
 ﻿# Package LumiaMusicView installer for GitHub Release (Windows x64 OBS plugin)
 param(
-  [string]$Version = "0.3.0",
+  [string]$Version = "0.3.1",
   [string]$OutDir = "",
   [switch]$AlsoZip
 )
@@ -64,6 +64,8 @@ New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
 Copy-Item $Dll (Join-Path $PluginDir "lumia-music-view.dll")
 Copy-Item (Join-Path $Data "overlay") (Join-Path $DataDir "overlay") -Recurse
 Copy-Item (Join-Path $Data "locale") (Join-Path $DataDir "locale") -Recurse
+# Dev-only demo; not needed at runtime
+Remove-Item (Join-Path $DataDir "overlay\anim-demo.html") -Force -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $Root "LICENSE.txt") (Join-Path $Stage "LICENSE.txt")
 Copy-Item (Join-Path $Root "INSTALL.txt") (Join-Path $Stage "INSTALL.txt")
 Copy-Item (Join-Path $Root "README.txt") (Join-Path $Stage "README.txt")

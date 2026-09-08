@@ -1,6 +1,6 @@
 #include "lumia_http.hpp"
 
-#define CPPHTTPLIB_THREAD_POOL_COUNT 4
+#define CPPHTTPLIB_THREAD_POOL_COUNT 2
 #include "httplib.h"
 
 #include <cctype>

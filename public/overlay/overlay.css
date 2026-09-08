@@ -186,7 +186,6 @@ body {
 .lumia-line-track {
   display: inline-block;
   white-space: nowrap;
-  will-change: transform;
   transform: translateX(0);
 }
 

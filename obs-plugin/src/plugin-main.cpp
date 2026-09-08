@@ -23,12 +23,12 @@ MODULE_EXPORT const char *obs_module_description(void)
 
 #define DESIGN_WIDTH 1000
 #define DESIGN_HEIGHT 250
-/* Draw at 2× so 1000×250 stays sharp when placed on the canvas */
-#define RENDER_SCALE 2
 #define DEFAULT_WIDTH DESIGN_WIDTH
 #define DEFAULT_HEIGHT DESIGN_HEIGHT
 #define DEFAULT_CSS \
 	"body { background-color: rgba(0, 0, 0, 0); margin: 0px; overflow: hidden; }"
+/* Browser overlay FPS — 30 is enough for music UI and lighter than 60 */
+#define OVERLAY_FPS 30
 
 #define S_BEHAVIOR "playback_behavior"
 #define S_BEHAVIOR_STOP_RESTART "stop_restart"
@@ -168,14 +168,12 @@ static void lumia_sync_media(struct lumia_source *ctx, bool force_reload)
 
 static uint32_t lumia_pixel_width(const struct lumia_source *ctx)
 {
-	uint32_t w = ctx && ctx->width ? ctx->width : DEFAULT_WIDTH;
-	return w * RENDER_SCALE;
+	return ctx && ctx->width ? ctx->width : DEFAULT_WIDTH;
 }
 
 static uint32_t lumia_pixel_height(const struct lumia_source *ctx)
 {
-	uint32_t h = ctx && ctx->height ? ctx->height : DEFAULT_HEIGHT;
-	return h * RENDER_SCALE;
+	return ctx && ctx->height ? ctx->height : DEFAULT_HEIGHT;
 }
 
 static void lumia_configure_browser_settings(obs_data_t *settings, struct lumia_source *ctx,
@@ -184,8 +182,7 @@ static void lumia_configure_browser_settings(obs_data_t *settings, struct lumia_
 	obs_data_set_string(settings, "url", url);
 	obs_data_set_int(settings, "width", (int)lumia_pixel_width(ctx));
 	obs_data_set_int(settings, "height", (int)lumia_pixel_height(ctx));
-	/* Higher FPS keeps marquee + cover updates sharper in the browser source */
-	obs_data_set_int(settings, "fps", 60);
+	obs_data_set_int(settings, "fps", OVERLAY_FPS);
 	obs_data_set_bool(settings, "shutdown", false);
 	obs_data_set_bool(settings, "restart_when_active", false);
 	/* Overlay is visual-only; audio comes from ffmpeg_source. */
