@@ -36,10 +36,6 @@ MODULE_EXPORT const char *obs_module_description(void)
 #define S_BEHAVIOR_STOP_RESTART "stop_restart"
 #define S_BEHAVIOR_PAUSE_UNPAUSE "pause_unpause"
 #define S_BEHAVIOR_ALWAYS_PLAY "always_play"
-#define S_FADE "fade"
-#define S_FADE_IN "fade_in_sec"
-#define S_FADE_OUT "fade_out_sec"
-#define DEFAULT_FADE_SEC 0.4
 
 enum lumia_behavior {
 	BEHAVIOR_STOP_RESTART = 0,
@@ -446,11 +442,6 @@ static void lumia_update(void *data, obs_data_t *settings)
 	lumia_ensure_media(ctx);
 	lumia_ensure_browser(ctx);
 	lumia_update_browser(ctx);
-	if (ctx->server) {
-		ctx->server->setFade(obs_data_get_bool(settings, S_FADE),
-				     obs_data_get_double(settings, S_FADE_IN),
-				     obs_data_get_double(settings, S_FADE_OUT));
-	}
 	lumia_apply_playlist(ctx, settings);
 }
 
@@ -625,20 +616,6 @@ static void lumia_enum_all(void *data, obs_source_enum_proc_t cb, void *param)
 	lumia_enum_active(data, cb, param);
 }
 
-static bool lumia_fade_modified(obs_properties_t *props, obs_property_t *property,
-				obs_data_t *settings)
-{
-	UNUSED_PARAMETER(property);
-	const bool on = obs_data_get_bool(settings, S_FADE);
-	obs_property_t *fin = obs_properties_get(props, S_FADE_IN);
-	obs_property_t *fout = obs_properties_get(props, S_FADE_OUT);
-	if (fin)
-		obs_property_set_visible(fin, on);
-	if (fout)
-		obs_property_set_visible(fout, on);
-	return true;
-}
-
 static obs_properties_t *lumia_properties(void *data)
 {
 	UNUSED_PARAMETER(data);
@@ -663,11 +640,6 @@ static obs_properties_t *lumia_properties(void *data)
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.AlwaysPlay"),
 				     S_BEHAVIOR_ALWAYS_PLAY);
 
-	obs_property_t *fade = obs_properties_add_bool(props, S_FADE, obs_module_text("Fade"));
-	obs_property_set_modified_callback(fade, lumia_fade_modified);
-	obs_properties_add_float(props, S_FADE_IN, obs_module_text("FadeInSec"), 0.0, 5.0, 0.1);
-	obs_properties_add_float(props, S_FADE_OUT, obs_module_text("FadeOutSec"), 0.0, 5.0, 0.1);
-
 	/* VLC と同じ editable list。ファイル=曲単体、フォルダ=アルバムとして ingest */
 	obs_properties_add_editable_list(props, "playlist", obs_module_text("Playlist"),
 					 OBS_EDITABLE_LIST_TYPE_FILES_AND_URLS, LUMIA_PLAYLIST_FILTER,
@@ -685,9 +657,6 @@ static void lumia_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "loop", true);
 	obs_data_set_default_bool(settings, "shuffle", true);
 	obs_data_set_default_string(settings, S_BEHAVIOR, S_BEHAVIOR_STOP_RESTART);
-	obs_data_set_default_bool(settings, S_FADE, true);
-	obs_data_set_default_double(settings, S_FADE_IN, DEFAULT_FADE_SEC);
-	obs_data_set_default_double(settings, S_FADE_OUT, DEFAULT_FADE_SEC);
 	obs_data_set_default_int(settings, "width", DEFAULT_WIDTH);
 	obs_data_set_default_int(settings, "height", DEFAULT_HEIGHT);
 	obs_data_set_default_string(settings, "css", DEFAULT_CSS);

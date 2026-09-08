@@ -3,12 +3,10 @@
 #define CPPHTTPLIB_THREAD_POOL_COUNT 4
 #include "httplib.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <mutex>
 #include <sstream>
 
 namespace fs = std::filesystem;
@@ -57,23 +55,6 @@ std::string LumiaHttpServer::baseUrl() const
 	return "http://127.0.0.1:" + std::to_string(port_);
 }
 
-void LumiaHttpServer::setFade(bool enabled, double fadeInSec, double fadeOutSec)
-{
-	std::lock_guard<std::mutex> lock(configMutex_);
-	fadeEnabled_ = enabled;
-	fadeInSec_ = std::clamp(fadeInSec, 0.0, 10.0);
-	fadeOutSec_ = std::clamp(fadeOutSec, 0.0, 10.0);
-}
-
-std::string LumiaHttpServer::configJson() const
-{
-	std::lock_guard<std::mutex> lock(configMutex_);
-	std::ostringstream o;
-	o << "{\"fade\":" << (fadeEnabled_ ? "true" : "false") << ",\"fadeIn\":" << fadeInSec_
-	  << ",\"fadeOut\":" << fadeOutSec_ << "}";
-	return o.str();
-}
-
 bool LumiaHttpServer::start(const std::string &staticRoot, int preferredPort)
 {
 	stop();
@@ -103,10 +84,6 @@ bool LumiaHttpServer::start(const std::string &staticRoot, int preferredPort)
 
 	svr->Get("/api/state", [this](const httplib::Request &, httplib::Response &res) {
 		res.set_content(engine_.snapshotJson(), "application/json; charset=utf-8");
-	});
-
-	svr->Get("/api/config", [this](const httplib::Request &, httplib::Response &res) {
-		res.set_content(configJson(), "application/json; charset=utf-8");
 	});
 
 	svr->Post("/api/library", [this](const httplib::Request &req, httplib::Response &res) {

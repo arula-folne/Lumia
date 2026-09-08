@@ -10,14 +10,9 @@ const durationEl = document.getElementById("duration");
 
 const DESIGN_W = 1000;
 const DESIGN_H = 250;
-const CHAR_STAGGER_MS = 32;
-const CHAR_DUR_MS = 280;
 /** px/sec for overflow travel (excluding hold segments) */
 const MARQUEE_PX_PER_SEC = 38;
 
-let fadeEnabled = true;
-let fadeInMs = 400;
-let fadeOutMs = 400;
 let currentId = null;
 let busy = false;
 let pendingState = null;
@@ -32,44 +27,11 @@ function syncUiScale() {
   document.documentElement.style.setProperty("--lumia-ui-scale", String(scale));
 }
 
-function applyFadeConfig(cfg) {
-  if (!cfg || typeof cfg !== "object") return;
-  fadeEnabled = cfg.fade !== false;
-  const inSec = typeof cfg.fadeIn === "number" ? cfg.fadeIn : 0.4;
-  const outSec = typeof cfg.fadeOut === "number" ? cfg.fadeOut : 0.4;
-  fadeInMs = Math.max(0, Math.round(inSec * 1000));
-  fadeOutMs = Math.max(0, Math.round(outSec * 1000));
-
-  document.body.dataset.anim = fadeEnabled ? "fade-left" : "none";
-  const root = document.documentElement.style;
-  root.setProperty("--lumia-fade-in", `${fadeInMs}ms`);
-  root.setProperty("--lumia-fade-out", `${fadeOutMs}ms`);
-  root.setProperty("--lumia-anim-duration", `${fadeInMs}ms`);
-  /* Text starts after most of the jacket fade-in */
-  const textStart = fadeEnabled ? Math.min(300, Math.round(fadeInMs * 0.7)) : 0;
-  root.setProperty("--lumia-text-start", `${textStart}ms`);
-}
-
 function fmt(sec) {
   const s = Math.max(0, Math.floor(sec || 0));
   const m = Math.floor(s / 60);
   const r = String(s % 60).padStart(2, "0");
   return `${m}:${r}`;
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function textStartMs() {
-  if (!fadeEnabled) return 0;
-  return Math.min(300, Math.round(fadeInMs * 0.7));
-}
-
-function enterDurationMs(charCount) {
-  if (!fadeEnabled) return 0;
-  if (charCount <= 0) return fadeInMs;
-  return textStartMs() + (charCount - 1) * CHAR_STAGGER_MS + CHAR_DUR_MS;
 }
 
 function clearMarquee(el) {
@@ -132,17 +94,6 @@ function setupMarquees() {
   }
 }
 
-function clearAnimClasses() {
-  card.classList.remove("is-exit", "is-enter");
-}
-
-function restartEnterAnim() {
-  clearAnimClasses();
-  void card.offsetWidth;
-  card.classList.add("is-enter");
-}
-
-/** @returns {number} total animated character count */
 function applyContent(state) {
   const track = state.track;
   let index = 0;
@@ -173,41 +124,22 @@ function applyProgressOnly(state) {
   durationEl.textContent = `${fmt(state.position)} / ${fmt(state.duration)}`;
 }
 
-async function runExitEnter(nextState) {
-  const hadTrack = currentId != null;
-  /* Fade only on song change — not when 動作 shows the source again */
-  const useFade = fadeEnabled && hadTrack;
-
-  if (useFade) {
-    clearAnimClasses();
-    void card.offsetWidth;
-    card.classList.add("is-exit");
-    await sleep(fadeOutMs);
-  }
-
+function runExitEnter(nextState) {
   stage.hidden = false;
   syncUiScale();
-  const charCount = applyContent(nextState);
+  applyContent(nextState);
   currentId = nextState.track.id;
-
-  if (useFade) {
-    restartEnterAnim();
-    await sleep(enterDurationMs(charCount));
-    card.classList.remove("is-enter");
-  } else {
-    clearAnimClasses();
-  }
+  card.classList.remove("is-exit", "is-enter");
   setupMarquees();
 }
 
-async function runHide() {
+function runHide() {
   if (currentId == null) {
     stage.hidden = true;
     return;
   }
 
-  /* Instant hide for 動作 (visibility) — no fade */
-  clearAnimClasses();
+  card.classList.remove("is-exit", "is-enter");
   stage.hidden = true;
   currentId = null;
   durationEl.textContent = "0:00 / 0:00";
@@ -232,7 +164,7 @@ async function flush() {
 
       const track = state.track;
       if (!track) {
-        await runHide();
+        runHide();
         continue;
       }
 
@@ -242,7 +174,7 @@ async function flush() {
         continue;
       }
 
-      await runExitEnter(state);
+      runExitEnter(state);
     }
   } finally {
     busy = false;
@@ -253,16 +185,6 @@ async function flush() {
 function applyState(state) {
   pendingState = state;
   flush();
-}
-
-async function pollConfig() {
-  try {
-    const res = await fetch("/api/config");
-    const cfg = await res.json();
-    applyFadeConfig(cfg);
-  } catch {
-    /* server not ready */
-  }
 }
 
 async function poll() {
@@ -277,17 +199,10 @@ async function poll() {
 
 window.addEventListener("resize", () => {
   syncUiScale();
-  if (
-    currentId != null &&
-    !card.classList.contains("is-enter") &&
-    !card.classList.contains("is-exit")
-  ) {
-    setupMarquees();
-  }
+  if (currentId != null) setupMarquees();
 });
 
+document.body.dataset.anim = "none";
 syncUiScale();
-pollConfig();
 poll();
-setInterval(pollConfig, 1000);
 setInterval(poll, 250);
