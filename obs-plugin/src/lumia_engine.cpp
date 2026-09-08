@@ -258,12 +258,23 @@ void LumiaEngine::ingestPath(const std::string &path)
 bool LumiaEngine::setPlaylist(const std::vector<std::string> &paths, std::string &err)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+
+	/* Same paths → keep current queue/playback (avoids reload on every property Apply) */
+	if (paths == playlistPaths_) {
+		if (tracks_.empty()) {
+			err = error_.empty() ? "Playlist is empty" : error_;
+			return false;
+		}
+		err.clear();
+		return true;
+	}
+
 	playlistPaths_ = paths;
 	tracks_.clear();
 	error_.clear();
 	root_.clear();
 
-		if (paths.empty()) {
+	if (paths.empty()) {
 		queue_.clear();
 		index_ = -1;
 		playing_ = false;
@@ -306,6 +317,12 @@ bool LumiaEngine::setPlaylist(const std::vector<std::string> &paths, std::string
 bool LumiaEngine::setRoot(const std::string &root, std::string &err)
 {
 	return setPlaylist({root}, err);
+}
+
+bool LumiaEngine::playlistPathsEqual(const std::vector<std::string> &paths) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	return paths == playlistPaths_;
 }
 
 void LumiaEngine::rebuildQueue(bool keepCurrent)
@@ -470,6 +487,8 @@ void LumiaEngine::prev()
 void LumiaEngine::setShuffle(bool on)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	if (shuffle_ == on)
+		return;
 	shuffle_ = on;
 	rebuildQueue(true);
 }
@@ -477,6 +496,8 @@ void LumiaEngine::setShuffle(bool on)
 void LumiaEngine::setLoop(bool on)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	if (loop_ == on)
+		return;
 	loop_ = on;
 }
 

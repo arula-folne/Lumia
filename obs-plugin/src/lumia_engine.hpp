@@ -33,8 +33,10 @@ struct LumiaState {
 
 class LumiaEngine {
 public:
+	/* Returns false on error. Unchanged playlist paths are a no-op success. */
 	bool setPlaylist(const std::vector<std::string> &paths, std::string &err);
 	bool setRoot(const std::string &root, std::string &err);
+	bool playlistPathsEqual(const std::vector<std::string> &paths) const;
 
 	void play();
 	void pause();

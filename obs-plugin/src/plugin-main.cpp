@@ -30,10 +30,6 @@ MODULE_EXPORT const char *obs_module_description(void)
 /* Hold next-track audio until overlay exit finishes with the old jacket (EXIT_MS + poll slack) */
 #define TRACK_SWAP_HOLD_MS 520
 
-#define LUMIA_PLAYLIST_FILTER \
-	"Audio (*.mp3 *.flac *.m4a *.aac *.wav *.ogg *.opus);;" \
-	"All Files (*.*)"
-
 #define S_BEHAVIOR "playback_behavior"
 #define S_BEHAVIOR_STOP_RESTART "stop_restart"
 #define S_BEHAVIOR_PAUSE_UNPAUSE "pause_unpause"
@@ -215,9 +211,28 @@ static void lumia_update_browser(struct lumia_source *ctx)
 	if (!ctx->browser || !ctx->server || ctx->server->port() <= 0)
 		return;
 
-	obs_data_t *settings = obs_source_get_settings(ctx->browser);
 	struct dstr url = {0};
 	dstr_printf(&url, "%s/overlay/", ctx->server->baseUrl().c_str());
+	const char *css =
+		(ctx->custom_css && *ctx->custom_css) ? ctx->custom_css : DEFAULT_CSS;
+	const int w = (int)lumia_pixel_width(ctx);
+	const int h = (int)lumia_pixel_height(ctx);
+
+	obs_data_t *settings = obs_source_get_settings(ctx->browser);
+	const char *cur_url = obs_data_get_string(settings, "url");
+	const char *cur_css = obs_data_get_string(settings, "css");
+	const bool unchanged =
+		cur_url && strcmp(cur_url, url.array) == 0 && cur_css &&
+		strcmp(cur_css, css) == 0 && obs_data_get_int(settings, "width") == w &&
+		obs_data_get_int(settings, "height") == h &&
+		obs_data_get_int(settings, "fps") == 60;
+
+	if (unchanged) {
+		obs_data_release(settings);
+		dstr_free(&url);
+		return;
+	}
+
 	lumia_configure_browser_settings(settings, ctx, url.array);
 	obs_source_update(ctx->browser, settings);
 	obs_data_release(settings);
@@ -342,19 +357,25 @@ static void lumia_apply_playlist(struct lumia_source *ctx, obs_data_t *settings)
 	if (!ctx->server)
 		return;
 
-	ctx->server->engine().setShuffle(ctx->shuffle);
-	ctx->server->engine().setLoop(ctx->loop);
-
+	auto &engine = ctx->server->engine();
 	auto paths = lumia_read_playlist(settings);
+	const bool paths_changed = !engine.playlistPathsEqual(paths);
+
+	engine.setLoop(ctx->loop);
+	engine.setShuffle(ctx->shuffle);
+
 	std::string err;
-	if (!ctx->server->engine().setPlaylist(paths, err)) {
+	if (!engine.setPlaylist(paths, err)) {
 		blog(LOG_WARNING, "[Lumia] playlist: %s", err.c_str());
 		obs_source_media_ended(ctx->source);
 		lumia_sync_media(ctx, true, false);
 		return;
 	}
 
-	/* Load first track but stay stopped (VLC does not autoplay on list edit by default for us). */
+	/* Only stop/reload media when the playlist contents actually changed */
+	if (!paths_changed)
+		return;
+
 	ctx->server->engine().stop();
 	lumia_sync_media(ctx, true, false);
 	obs_source_media_ended(ctx->source);
@@ -643,19 +664,16 @@ static obs_properties_t *lumia_properties(void *data)
 {
 	UNUSED_PARAMETER(data);
 	obs_properties_t *props = obs_properties_create();
-	obs_property_t *p;
 
-	/* Browser 同様: 幅 / 高さはグループなし */
-	obs_properties_add_int(props, "width", obs_module_text("Width"), 100, 3840, 10);
-	obs_properties_add_int(props, "height", obs_module_text("Height"), 100, 2160, 10);
-
-	/* VLC 同様: ループ / シャッフル / 動作 → プレイリスト */
+	/* Defer Apply so CSS typing does not reload the overlay every keystroke */
 	obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
+
+	/* Ver.0.1.2 layout / labels */
 	obs_properties_add_bool(props, "loop", obs_module_text("LoopPlaylist"));
 	obs_properties_add_bool(props, "shuffle", obs_module_text("ShufflePlaylist"));
 
-	p = obs_properties_add_list(props, S_BEHAVIOR, obs_module_text("PlaybackBehavior"),
-				    OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_t *p = obs_properties_add_list(props, S_BEHAVIOR, obs_module_text("PlaybackBehavior"),
+						    OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.StopRestart"),
 				     S_BEHAVIOR_STOP_RESTART);
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.PauseUnpause"),
@@ -663,15 +681,11 @@ static obs_properties_t *lumia_properties(void *data)
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.AlwaysPlay"),
 				     S_BEHAVIOR_ALWAYS_PLAY);
 
-	/* VLC と同じ editable list。ファイル=曲単体、フォルダ=アルバムとして ingest */
 	obs_properties_add_editable_list(props, "playlist", obs_module_text("Playlist"),
-					 OBS_EDITABLE_LIST_TYPE_FILES_AND_URLS, LUMIA_PLAYLIST_FILTER,
-					 NULL);
-
-	/* Browser と同じ Custom CSS（multiline + monospace） */
-	p = obs_properties_add_text(props, "css", obs_module_text("CustomCSS"), OBS_TEXT_MULTILINE);
-	obs_property_text_set_monospace(p, true);
-
+					 OBS_EDITABLE_LIST_TYPE_FILES_AND_URLS, NULL, NULL);
+	obs_properties_add_int(props, "width", obs_module_text("Width"), 100, 3840, 1);
+	obs_properties_add_int(props, "height", obs_module_text("Height"), 100, 2160, 1);
+	obs_properties_add_text(props, "css", obs_module_text("CustomCSS"), OBS_TEXT_MULTILINE);
 	return props;
 }
 
