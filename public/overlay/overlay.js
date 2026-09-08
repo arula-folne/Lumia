@@ -109,14 +109,13 @@ function setupMarquees() {
 }
 
 function clearAnimClasses() {
-  card.classList.remove("is-exit", "is-enter", "is-instant-jacket");
+  card.classList.remove("is-exit", "is-enter");
 }
 
-function restartEnterAnim(instantJacket) {
+function restartEnterAnim() {
   clearAnimClasses();
   void card.offsetWidth;
   card.classList.add("is-enter");
-  if (instantJacket) card.classList.add("is-instant-jacket");
 }
 
 /** @returns {number} total animated character count */
@@ -151,15 +150,31 @@ function applyProgressOnly(state) {
 }
 
 async function runExitEnter(nextState) {
-  /* Apply new jacket/text immediately so visuals match audio.
-     Skip exit wait — that left the old jacket on screen while the next song played. */
-  const hadTrack = currentId != null;
-  clearAnimClasses();
+  /* Exit with the OLD jacket still on screen, swap only when faded out, then enter. */
   stage.hidden = false;
   syncUiScale();
+
+  if (currentId != null) {
+    clearAnimClasses();
+    void card.offsetWidth;
+    card.classList.add("is-exit");
+
+    const step = 40;
+    for (let t = 0; t < EXIT_MS; t += step) {
+      if (pendingState !== null) break;
+      await sleep(Math.min(step, EXIT_MS - t));
+    }
+    card.classList.remove("is-exit");
+  }
+
+  if (pendingState !== null) {
+    /* Newer track queued — skip this enter; flush will run the latest. */
+    return;
+  }
+
   const charCount = applyContent(nextState);
   currentId = nextState.track.id;
-  restartEnterAnim(hadTrack);
+  restartEnterAnim();
 
   const total = enterDurationMs(charCount);
   const step = 40;
@@ -168,7 +183,7 @@ async function runExitEnter(nextState) {
     await sleep(Math.min(step, total - t));
   }
 
-  card.classList.remove("is-enter", "is-instant-jacket");
+  card.classList.remove("is-enter");
   if (pendingState === null) setupMarquees();
 }
 

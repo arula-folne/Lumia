@@ -267,13 +267,6 @@ body[data-anim="slide"] .card.is-enter .lumia-char {
   );
 }
 
-/* On song swap, jacket snaps to the new cover; text still fades in */
-.card.is-enter.is-instant-jacket .jacket {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
-}
-
 /* Pause marquee while enter/exit so char anim stays readable */
 .card.is-enter .lumia-line.is-marquee .lumia-line-track,
 .card.is-exit .lumia-line.is-marquee .lumia-line-track {
