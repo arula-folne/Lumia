@@ -175,21 +175,28 @@ function applyProgressOnly(state) {
 
 async function runExitEnter(nextState) {
   const hadTrack = currentId != null;
+  /* Fade only on song change — not when 動作 shows the source again */
+  const useFade = fadeEnabled && hadTrack;
 
-  if (hadTrack) {
+  if (useFade) {
     clearAnimClasses();
     void card.offsetWidth;
     card.classList.add("is-exit");
-    await sleep(fadeEnabled ? fadeOutMs : 0);
+    await sleep(fadeOutMs);
   }
 
   stage.hidden = false;
   syncUiScale();
   const charCount = applyContent(nextState);
   currentId = nextState.track.id;
-  restartEnterAnim();
-  await sleep(enterDurationMs(charCount));
-  card.classList.remove("is-enter");
+
+  if (useFade) {
+    restartEnterAnim();
+    await sleep(enterDurationMs(charCount));
+    card.classList.remove("is-enter");
+  } else {
+    clearAnimClasses();
+  }
   setupMarquees();
 }
 
@@ -199,10 +206,7 @@ async function runHide() {
     return;
   }
 
-  clearAnimClasses();
-  void card.offsetWidth;
-  card.classList.add("is-exit");
-  await sleep(fadeEnabled ? fadeOutMs : 0);
+  /* Instant hide for 動作 (visibility) — no fade */
   clearAnimClasses();
   stage.hidden = true;
   currentId = null;
