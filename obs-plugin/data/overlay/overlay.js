@@ -109,13 +109,14 @@ function setupMarquees() {
 }
 
 function clearAnimClasses() {
-  card.classList.remove("is-exit", "is-enter");
+  card.classList.remove("is-exit", "is-enter", "is-instant-jacket");
 }
 
-function restartEnterAnim() {
+function restartEnterAnim(instantJacket) {
   clearAnimClasses();
   void card.offsetWidth;
   card.classList.add("is-enter");
+  if (instantJacket) card.classList.add("is-instant-jacket");
 }
 
 /** @returns {number} total animated character count */
@@ -150,23 +151,25 @@ function applyProgressOnly(state) {
 }
 
 async function runExitEnter(nextState) {
+  /* Apply new jacket/text immediately so visuals match audio.
+     Skip exit wait — that left the old jacket on screen while the next song played. */
   const hadTrack = currentId != null;
-
-  if (hadTrack) {
-    clearAnimClasses();
-    void card.offsetWidth;
-    card.classList.add("is-exit");
-    await sleep(EXIT_MS);
-  }
-
+  clearAnimClasses();
   stage.hidden = false;
   syncUiScale();
   const charCount = applyContent(nextState);
   currentId = nextState.track.id;
-  restartEnterAnim();
-  await sleep(enterDurationMs(charCount));
-  card.classList.remove("is-enter");
-  setupMarquees();
+  restartEnterAnim(hadTrack);
+
+  const total = enterDurationMs(charCount);
+  const step = 40;
+  for (let t = 0; t < total; t += step) {
+    if (pendingState !== null) break;
+    await sleep(Math.min(step, total - t));
+  }
+
+  card.classList.remove("is-enter", "is-instant-jacket");
+  if (pendingState === null) setupMarquees();
 }
 
 async function runHide() {
@@ -255,4 +258,4 @@ document.documentElement.style.setProperty("--lumia-char-duration", `${CHAR_DUR_
 
 syncUiScale();
 poll();
-setInterval(poll, 250);
+setInterval(poll, 100);
