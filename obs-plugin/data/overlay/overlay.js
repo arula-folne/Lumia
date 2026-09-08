@@ -10,7 +10,12 @@ const durationEl = document.getElementById("duration");
 
 const DESIGN_W = 1000;
 const DESIGN_H = 250;
-/** px/sec for overflow travel (excluding hold segments) */
+/* ~0.1.2 track-change animation timings */
+const EXIT_MS = 420;
+const JACKET_MS = 420;
+const TEXT_START_MS = 300;
+const CHAR_STAGGER_MS = 32;
+const CHAR_DUR_MS = 280;
 const MARQUEE_PX_PER_SEC = 38;
 
 let currentId = null;
@@ -32,6 +37,15 @@ function fmt(sec) {
   const m = Math.floor(s / 60);
   const r = String(s % 60).padStart(2, "0");
   return `${m}:${r}`;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function enterDurationMs(charCount) {
+  if (charCount <= 0) return JACKET_MS;
+  return TEXT_START_MS + (charCount - 1) * CHAR_STAGGER_MS + CHAR_DUR_MS;
 }
 
 function clearMarquee(el) {
@@ -94,6 +108,17 @@ function setupMarquees() {
   }
 }
 
+function clearAnimClasses() {
+  card.classList.remove("is-exit", "is-enter");
+}
+
+function restartEnterAnim() {
+  clearAnimClasses();
+  void card.offsetWidth;
+  card.classList.add("is-enter");
+}
+
+/** @returns {number} total animated character count */
 function applyContent(state) {
   const track = state.track;
   let index = 0;
@@ -124,22 +149,34 @@ function applyProgressOnly(state) {
   durationEl.textContent = `${fmt(state.position)} / ${fmt(state.duration)}`;
 }
 
-function runExitEnter(nextState) {
+async function runExitEnter(nextState) {
+  const hadTrack = currentId != null;
+
+  if (hadTrack) {
+    clearAnimClasses();
+    void card.offsetWidth;
+    card.classList.add("is-exit");
+    await sleep(EXIT_MS);
+  }
+
   stage.hidden = false;
   syncUiScale();
-  applyContent(nextState);
+  const charCount = applyContent(nextState);
   currentId = nextState.track.id;
-  card.classList.remove("is-exit", "is-enter");
+  restartEnterAnim();
+  await sleep(enterDurationMs(charCount));
+  card.classList.remove("is-enter");
   setupMarquees();
 }
 
-function runHide() {
+async function runHide() {
   if (currentId == null) {
     stage.hidden = true;
     return;
   }
 
-  card.classList.remove("is-exit", "is-enter");
+  /* Instant hide for 動作 (visibility) — animation is track-change only */
+  clearAnimClasses();
   stage.hidden = true;
   currentId = null;
   durationEl.textContent = "0:00 / 0:00";
@@ -164,7 +201,7 @@ async function flush() {
 
       const track = state.track;
       if (!track) {
-        runHide();
+        await runHide();
         continue;
       }
 
@@ -174,7 +211,7 @@ async function flush() {
         continue;
       }
 
-      runExitEnter(state);
+      await runExitEnter(state);
     }
   } finally {
     busy = false;
@@ -199,10 +236,23 @@ async function poll() {
 
 window.addEventListener("resize", () => {
   syncUiScale();
-  if (currentId != null) setupMarquees();
+  if (
+    currentId != null &&
+    !card.classList.contains("is-enter") &&
+    !card.classList.contains("is-exit")
+  ) {
+    setupMarquees();
+  }
 });
 
-document.body.dataset.anim = "none";
+document.body.dataset.anim = "fade-left";
+document.documentElement.style.setProperty("--lumia-anim-duration", `${EXIT_MS}ms`);
+document.documentElement.style.setProperty("--lumia-fade-in", `${JACKET_MS}ms`);
+document.documentElement.style.setProperty("--lumia-fade-out", `${EXIT_MS}ms`);
+document.documentElement.style.setProperty("--lumia-text-start", `${TEXT_START_MS}ms`);
+document.documentElement.style.setProperty("--lumia-char-stagger", `${CHAR_STAGGER_MS}ms`);
+document.documentElement.style.setProperty("--lumia-char-duration", `${CHAR_DUR_MS}ms`);
+
 syncUiScale();
 poll();
 setInterval(poll, 250);
