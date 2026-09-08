@@ -9,7 +9,8 @@
   --lumia-text-bg: transparent;
   --lumia-gap: 0.85rem;
   --lumia-accent-width: 9px;
-  --lumia-jacket-size: 200px;
+  --lumia-jacket-size: 250px;
+  --lumia-jacket-max: 250px;
   --lumia-text-height: 0px;
   --lumia-radius: 0;
   /* Fixed text sizes (independent of jacket size) */
@@ -23,11 +24,13 @@
   --lumia-jacket-shadow: none;
   --lumia-jacket-radius: 0;
   --lumia-text-radius: 0;
-  --lumia-anim-duration: 420ms;
+  --lumia-anim-duration: 400ms;
+  --lumia-fade-in: 400ms;
+  --lumia-fade-out: 400ms;
   --lumia-text-start: 300ms;
   --lumia-char-stagger: 32ms;
   --lumia-char-duration: 280ms;
-  --lumia-stage-pad: 12px;
+  --lumia-stage-pad: 0px;
   --lumia-ui-scale: 1;
   --marquee-duration: 12s;
   --marquee-shift: 0px;
@@ -77,7 +80,7 @@ body {
   padding: var(--lumia-stage-pad);
   box-sizing: border-box;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: flex-start;
   transform-origin: left bottom;
   /* zoom is set by overlay.js (--lumia-ui-scale via zoom for crisp glyphs) */
@@ -89,22 +92,28 @@ body {
   align-items: flex-end;
   gap: var(--lumia-gap);
   width: 100%;
+  height: 100%;
   max-width: 100%;
   min-width: 0;
 }
 
 .accent {
   width: var(--lumia-accent-width);
-  height: var(--lumia-jacket-size);
+  height: min(var(--lumia-jacket-size), var(--lumia-jacket-max));
+  max-height: 100%;
   flex-shrink: 0;
+  align-self: flex-end;
   background: var(--lumia-text-color);
 }
 
 .jacket {
   position: relative;
-  width: var(--lumia-jacket-size);
-  height: var(--lumia-jacket-size);
+  width: min(var(--lumia-jacket-size), var(--lumia-jacket-max));
+  height: min(var(--lumia-jacket-size), var(--lumia-jacket-max));
+  max-width: 100%;
+  max-height: 100%;
   flex-shrink: 0;
+  align-self: flex-end;
   border-radius: var(--lumia-jacket-radius);
   overflow: hidden;
   box-shadow: var(--lumia-jacket-shadow);
@@ -246,13 +255,13 @@ body[data-anim="fade"] .card.is-exit .jacket,
 body[data-anim="fade"] .card.is-exit .text-block,
 body[data-anim="slide"] .card.is-exit .jacket,
 body[data-anim="slide"] .card.is-exit .text-block {
-  animation: lumia-fade-left-out var(--lumia-anim-duration) ease both;
+  animation: lumia-fade-left-out var(--lumia-fade-out, var(--lumia-anim-duration)) ease both;
 }
 
 body[data-anim="fade-left"] .card.is-enter .jacket,
 body[data-anim="fade"] .card.is-enter .jacket,
 body[data-anim="slide"] .card.is-enter .jacket {
-  animation: lumia-fade-left-in var(--lumia-anim-duration) ease both;
+  animation: lumia-fade-left-in var(--lumia-fade-in, var(--lumia-anim-duration)) ease both;
 }
 
 body[data-anim="fade-left"] .card.is-enter .lumia-char,

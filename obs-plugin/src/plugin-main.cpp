@@ -23,8 +23,6 @@ MODULE_EXPORT const char *obs_module_description(void)
 
 #define DESIGN_WIDTH 1000
 #define DESIGN_HEIGHT 250
-/* Draw at 2× so 1000×250 stays sharp when placed on the canvas */
-#define RENDER_SCALE 2
 #define DEFAULT_WIDTH DESIGN_WIDTH
 #define DEFAULT_HEIGHT DESIGN_HEIGHT
 #define DEFAULT_CSS \
@@ -38,6 +36,10 @@ MODULE_EXPORT const char *obs_module_description(void)
 #define S_BEHAVIOR_STOP_RESTART "stop_restart"
 #define S_BEHAVIOR_PAUSE_UNPAUSE "pause_unpause"
 #define S_BEHAVIOR_ALWAYS_PLAY "always_play"
+#define S_FADE "fade"
+#define S_FADE_IN "fade_in_sec"
+#define S_FADE_OUT "fade_out_sec"
+#define DEFAULT_FADE_SEC 0.4
 
 enum lumia_behavior {
 	BEHAVIOR_STOP_RESTART = 0,
@@ -172,14 +174,12 @@ static void lumia_sync_media(struct lumia_source *ctx, bool force_reload)
 
 static uint32_t lumia_pixel_width(const struct lumia_source *ctx)
 {
-	uint32_t w = ctx && ctx->width ? ctx->width : DEFAULT_WIDTH;
-	return w * RENDER_SCALE;
+	return ctx && ctx->width ? ctx->width : DEFAULT_WIDTH;
 }
 
 static uint32_t lumia_pixel_height(const struct lumia_source *ctx)
 {
-	uint32_t h = ctx && ctx->height ? ctx->height : DEFAULT_HEIGHT;
-	return h * RENDER_SCALE;
+	return ctx && ctx->height ? ctx->height : DEFAULT_HEIGHT;
 }
 
 static void lumia_configure_browser_settings(obs_data_t *settings, struct lumia_source *ctx,
@@ -446,6 +446,11 @@ static void lumia_update(void *data, obs_data_t *settings)
 	lumia_ensure_media(ctx);
 	lumia_ensure_browser(ctx);
 	lumia_update_browser(ctx);
+	if (ctx->server) {
+		ctx->server->setFade(obs_data_get_bool(settings, S_FADE),
+				     obs_data_get_double(settings, S_FADE_IN),
+				     obs_data_get_double(settings, S_FADE_OUT));
+	}
 	lumia_apply_playlist(ctx, settings);
 }
 
@@ -646,19 +651,31 @@ static bool lumia_add_folder_changed(obs_properties_t *props, obs_property_t *pr
 	return true;
 }
 
+static bool lumia_fade_modified(obs_properties_t *props, obs_property_t *property,
+				obs_data_t *settings)
+{
+	UNUSED_PARAMETER(property);
+	const bool on = obs_data_get_bool(settings, S_FADE);
+	obs_property_t *fin = obs_properties_get(props, S_FADE_IN);
+	obs_property_t *fout = obs_properties_get(props, S_FADE_OUT);
+	if (fin)
+		obs_property_set_visible(fin, on);
+	if (fout)
+		obs_property_set_visible(fout, on);
+	return true;
+}
+
 static obs_properties_t *lumia_properties(void *data)
 {
 	UNUSED_PARAMETER(data);
 	obs_properties_t *props = obs_properties_create();
 
-	obs_properties_add_editable_list(props, "playlist", obs_module_text("Playlist"),
-					 OBS_EDITABLE_LIST_TYPE_FILES, LUMIA_PLAYLIST_FILTER,
-					 NULL);
-
-	obs_property_t *folder = obs_properties_add_path(props, "add_folder",
-							 obs_module_text("AddFolder"),
-							 OBS_PATH_DIRECTORY, NULL, NULL);
-	obs_property_set_modified_callback(folder, lumia_add_folder_changed);
+	/* 表示サイズ → 幅 / 高さ */
+	obs_properties_t *display = obs_properties_create();
+	obs_properties_add_int(display, "width", obs_module_text("Width"), 100, 3840, 10);
+	obs_properties_add_int(display, "height", obs_module_text("Height"), 100, 2160, 10);
+	obs_properties_add_group(props, "display_group", obs_module_text("DisplayGroup"),
+				 OBS_GROUP_NORMAL, display);
 
 	obs_properties_add_bool(props, "loop", obs_module_text("LoopPlaylist"));
 	obs_properties_add_bool(props, "shuffle", obs_module_text("ShufflePlaylist"));
@@ -672,17 +689,24 @@ static obs_properties_t *lumia_properties(void *data)
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.AlwaysPlay"),
 				     S_BEHAVIOR_ALWAYS_PLAY);
 
-	obs_properties_t *display = obs_properties_create();
-	obs_property_t *w = obs_properties_add_int(display, "width", obs_module_text("Width"), 100,
-						   3840, 10);
-	obs_property_set_long_description(w, obs_module_text("Width.Description"));
-	obs_property_t *h = obs_properties_add_int(display, "height", obs_module_text("Height"), 100,
-						   2160, 10);
-	obs_property_set_long_description(h, obs_module_text("Height.Description"));
-	/* Single-line keeps the properties dialog compact */
-	obs_properties_add_text(display, "css", obs_module_text("CustomCSS"), OBS_TEXT_DEFAULT);
-	obs_properties_add_group(props, "display_group", obs_module_text("DisplayGroup"),
-				 OBS_GROUP_NORMAL, display);
+	obs_property_t *fade = obs_properties_add_bool(props, S_FADE, obs_module_text("Fade"));
+	obs_property_set_modified_callback(fade, lumia_fade_modified);
+	obs_properties_add_float(props, S_FADE_IN, obs_module_text("FadeInSec"), 0.0, 5.0, 0.1);
+	obs_properties_add_float(props, S_FADE_OUT, obs_module_text("FadeOutSec"), 0.0, 5.0, 0.1);
+
+	/* 曲・ファイル → 単体 / アルバム */
+	obs_properties_t *tracks = obs_properties_create();
+	obs_properties_add_editable_list(tracks, "playlist", obs_module_text("PlaylistFiles"),
+					 OBS_EDITABLE_LIST_TYPE_FILES, LUMIA_PLAYLIST_FILTER,
+					 NULL);
+	obs_property_t *folder = obs_properties_add_path(tracks, "add_folder",
+							 obs_module_text("AddFolder"),
+							 OBS_PATH_DIRECTORY, NULL, NULL);
+	obs_property_set_modified_callback(folder, lumia_add_folder_changed);
+	obs_properties_add_group(props, "playlist_group", obs_module_text("Playlist"),
+				 OBS_GROUP_NORMAL, tracks);
+
+	obs_properties_add_text(props, "css", obs_module_text("CustomCSS"), OBS_TEXT_MULTILINE);
 
 	return props;
 }
@@ -692,6 +716,9 @@ static void lumia_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "loop", true);
 	obs_data_set_default_bool(settings, "shuffle", true);
 	obs_data_set_default_string(settings, S_BEHAVIOR, S_BEHAVIOR_STOP_RESTART);
+	obs_data_set_default_bool(settings, S_FADE, true);
+	obs_data_set_default_double(settings, S_FADE_IN, DEFAULT_FADE_SEC);
+	obs_data_set_default_double(settings, S_FADE_OUT, DEFAULT_FADE_SEC);
 	obs_data_set_default_int(settings, "width", DEFAULT_WIDTH);
 	obs_data_set_default_int(settings, "height", DEFAULT_HEIGHT);
 	obs_data_set_default_string(settings, "css", DEFAULT_CSS);

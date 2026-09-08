@@ -10,14 +10,14 @@ const durationEl = document.getElementById("duration");
 
 const DESIGN_W = 1000;
 const DESIGN_H = 250;
-const EXIT_MS = 420;
-const JACKET_MS = 420;
-const TEXT_START_MS = 300;
 const CHAR_STAGGER_MS = 32;
 const CHAR_DUR_MS = 280;
 /** px/sec for overflow travel (excluding hold segments) */
 const MARQUEE_PX_PER_SEC = 38;
 
+let fadeEnabled = true;
+let fadeInMs = 400;
+let fadeOutMs = 400;
 let currentId = null;
 let busy = false;
 let pendingState = null;
@@ -32,6 +32,24 @@ function syncUiScale() {
   document.documentElement.style.setProperty("--lumia-ui-scale", String(scale));
 }
 
+function applyFadeConfig(cfg) {
+  if (!cfg || typeof cfg !== "object") return;
+  fadeEnabled = cfg.fade !== false;
+  const inSec = typeof cfg.fadeIn === "number" ? cfg.fadeIn : 0.4;
+  const outSec = typeof cfg.fadeOut === "number" ? cfg.fadeOut : 0.4;
+  fadeInMs = Math.max(0, Math.round(inSec * 1000));
+  fadeOutMs = Math.max(0, Math.round(outSec * 1000));
+
+  document.body.dataset.anim = fadeEnabled ? "fade-left" : "none";
+  const root = document.documentElement.style;
+  root.setProperty("--lumia-fade-in", `${fadeInMs}ms`);
+  root.setProperty("--lumia-fade-out", `${fadeOutMs}ms`);
+  root.setProperty("--lumia-anim-duration", `${fadeInMs}ms`);
+  /* Text starts after most of the jacket fade-in */
+  const textStart = fadeEnabled ? Math.min(300, Math.round(fadeInMs * 0.7)) : 0;
+  root.setProperty("--lumia-text-start", `${textStart}ms`);
+}
+
 function fmt(sec) {
   const s = Math.max(0, Math.floor(sec || 0));
   const m = Math.floor(s / 60);
@@ -43,9 +61,15 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function textStartMs() {
+  if (!fadeEnabled) return 0;
+  return Math.min(300, Math.round(fadeInMs * 0.7));
+}
+
 function enterDurationMs(charCount) {
-  if (charCount <= 0) return JACKET_MS;
-  return TEXT_START_MS + (charCount - 1) * CHAR_STAGGER_MS + CHAR_DUR_MS;
+  if (!fadeEnabled) return 0;
+  if (charCount <= 0) return fadeInMs;
+  return textStartMs() + (charCount - 1) * CHAR_STAGGER_MS + CHAR_DUR_MS;
 }
 
 function clearMarquee(el) {
@@ -156,7 +180,7 @@ async function runExitEnter(nextState) {
     clearAnimClasses();
     void card.offsetWidth;
     card.classList.add("is-exit");
-    await sleep(EXIT_MS);
+    await sleep(fadeEnabled ? fadeOutMs : 0);
   }
 
   stage.hidden = false;
@@ -178,7 +202,7 @@ async function runHide() {
   clearAnimClasses();
   void card.offsetWidth;
   card.classList.add("is-exit");
-  await sleep(EXIT_MS);
+  await sleep(fadeEnabled ? fadeOutMs : 0);
   clearAnimClasses();
   stage.hidden = true;
   currentId = null;
@@ -227,6 +251,16 @@ function applyState(state) {
   flush();
 }
 
+async function pollConfig() {
+  try {
+    const res = await fetch("/api/config");
+    const cfg = await res.json();
+    applyFadeConfig(cfg);
+  } catch {
+    /* server not ready */
+  }
+}
+
 async function poll() {
   try {
     const res = await fetch("/api/state");
@@ -249,5 +283,7 @@ window.addEventListener("resize", () => {
 });
 
 syncUiScale();
+pollConfig();
 poll();
+setInterval(pollConfig, 1000);
 setInterval(poll, 250);
