@@ -27,8 +27,8 @@ MODULE_EXPORT const char *obs_module_description(void)
 #define DEFAULT_HEIGHT DESIGN_HEIGHT
 #define DEFAULT_CSS \
 	"body { background-color: rgba(0, 0, 0, 0); margin: 0px; overflow: hidden; }"
-/* Browser overlay FPS — 30 is enough for music UI and lighter than 60 */
-#define OVERLAY_FPS 30
+/* Browser overlay FPS */
+#define OVERLAY_FPS 60
 
 #define S_BEHAVIOR "playback_behavior"
 #define S_BEHAVIOR_STOP_RESTART "stop_restart"

@@ -1,6 +1,6 @@
 ﻿# Package LumiaMusicView installer for GitHub Release (Windows x64 OBS plugin)
 param(
-  [string]$Version = "0.3.1",
+  [string]$Version = "0.3.2",
   [string]$OutDir = "",
   [switch]$AlsoZip
 )
