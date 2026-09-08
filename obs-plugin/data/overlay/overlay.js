@@ -118,8 +118,19 @@ function restartEnterAnim() {
   card.classList.add("is-enter");
 }
 
-/** @returns {number} total animated character count */
-function applyContent(state) {
+async function preloadCover(coverUrl) {
+  if (!coverUrl) return;
+  try {
+    const img = new Image();
+    img.src = coverUrl;
+    if (img.decode) await img.decode();
+  } catch {
+    /* ignore decode errors */
+  }
+}
+
+/** @returns {Promise<number>} total animated character count */
+async function applyContent(state) {
   const track = state.track;
   let index = 0;
   index = setOptionalChars(albumEl, track.album, index);
@@ -133,7 +144,7 @@ function applyContent(state) {
     if (jacketImg.getAttribute("src") !== track.coverUrl) {
       jacketImg.src = track.coverUrl;
       if (jacketImg.decode) {
-        jacketImg.decode().catch(() => {});
+        await jacketImg.decode().catch(() => {});
       }
     }
   } else {
@@ -150,9 +161,11 @@ function applyProgressOnly(state) {
 }
 
 async function runExitEnter(nextState) {
-  /* Exit with the OLD jacket still on screen, swap only when faded out, then enter. */
+  /* Exit with OLD jacket → stay faded out while swapping → enter (no opacity snap). */
   stage.hidden = false;
   syncUiScale();
+
+  const coverReady = preloadCover(nextState.track && nextState.track.coverUrl);
 
   if (currentId != null) {
     clearAnimClasses();
@@ -164,15 +177,16 @@ async function runExitEnter(nextState) {
       if (pendingState !== null) break;
       await sleep(Math.min(step, EXIT_MS - t));
     }
-    card.classList.remove("is-exit");
+    /* Keep is-exit (opacity 0) — removing it here caused a visible flash/stutter */
   }
 
+  await coverReady;
+
   if (pendingState !== null) {
-    /* Newer track queued — skip this enter; flush will run the latest. */
     return;
   }
 
-  const charCount = applyContent(nextState);
+  const charCount = await applyContent(nextState);
   currentId = nextState.track.id;
   restartEnterAnim();
 
