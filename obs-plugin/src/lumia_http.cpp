@@ -9,7 +9,25 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace fs = std::filesystem;
+
+#ifdef _WIN32
+static std::wstring utf8ToWide(const std::string &s)
+{
+	if (s.empty())
+		return {};
+	int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
+	if (n <= 0)
+		return {};
+	std::wstring w((size_t)n, L'\0');
+	MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), w.data(), n);
+	return w;
+}
+#endif
 
 static std::string mimeFor(const std::string &path)
 {
@@ -178,7 +196,11 @@ bool LumiaHttpServer::start(const std::string &staticRoot, int preferredPort)
 	});
 
 	auto sendFile = [](httplib::Response &res, const std::string &path) {
+#ifdef _WIN32
+		std::ifstream ifs(utf8ToWide(path), std::ios::binary);
+#else
 		std::ifstream ifs(path, std::ios::binary);
+#endif
 		if (!ifs) {
 			res.status = 404;
 			res.set_content("Not found", "text/plain");
@@ -186,6 +208,7 @@ bool LumiaHttpServer::start(const std::string &staticRoot, int preferredPort)
 		}
 		std::ostringstream ss;
 		ss << ifs.rdbuf();
+		res.set_header("Cache-Control", "no-store");
 		res.set_content(ss.str(), mimeFor(path));
 	};
 

@@ -452,6 +452,13 @@ static void lumia_video_tick(void *data, float seconds)
 	auto &engine = ctx->server->engine();
 	auto state = engine.snapshot();
 
+	if (state.seekTo >= 0 && ctx->media_loaded) {
+		obs_source_media_set_time(ctx->media, (int64_t)(state.seekTo * 1000.0));
+		engine.clearSeek();
+		engine.setTransportTimes(0, -1);
+		state = engine.snapshot();
+	}
+
 	if (ctx->media_loaded) {
 		int64_t t = obs_source_media_get_time(ctx->media);
 		int64_t d = obs_source_media_get_duration(ctx->media);
@@ -534,8 +541,20 @@ static void lumia_media_previous(void *data)
 	auto *ctx = (lumia_source *)data;
 	if (!ctx || !ctx->server)
 		return;
+
+	uint64_t gen_before = ctx->server->engine().mediaGeneration();
 	ctx->server->engine().prev();
-	lumia_sync_media(ctx, true);
+	auto st = ctx->server->engine().snapshot();
+
+	if (st.seekTo >= 0 && ctx->media) {
+		/* Same-track restart */
+		obs_source_media_set_time(ctx->media, (int64_t)(st.seekTo * 1000.0));
+		ctx->server->engine().clearSeek();
+		ctx->server->engine().setTransportTimes(0, -1);
+	} else if (ctx->server->engine().mediaGeneration() != gen_before) {
+		lumia_sync_media(ctx, true);
+	}
+
 	obs_source_media_started(ctx->source);
 }
 

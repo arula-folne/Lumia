@@ -118,30 +118,61 @@ function restartEnterAnim() {
   card.classList.add("is-enter");
 }
 
-/** @returns {number} total animated character count */
-function applyContent(state) {
+function hasNewerTrack(thanId) {
+  const t = pendingState && pendingState.track;
+  return !!(t && t.id !== thanId);
+}
+
+async function setJacket(trackId, coverUrl) {
+  if (!coverUrl) {
+    jacketImg.hidden = true;
+    jacketImg.removeAttribute("src");
+    jacketImg.removeAttribute("data-track-id");
+    jacketImg.style.visibility = "";
+    jacketFallback.hidden = false;
+    return;
+  }
+
+  const url = `${coverUrl}${coverUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(trackId)}`;
+  if (jacketImg.getAttribute("data-track-id") === trackId && jacketImg.getAttribute("src") === url) {
+    jacketImg.hidden = false;
+    jacketFallback.hidden = true;
+    jacketImg.style.visibility = "visible";
+    return;
+  }
+
+  jacketFallback.hidden = true;
+  jacketImg.hidden = false;
+  jacketImg.style.visibility = "hidden";
+  jacketImg.setAttribute("data-track-id", trackId);
+  jacketImg.src = url;
+
+  try {
+    if (jacketImg.decode) await jacketImg.decode();
+  } catch {
+    /* keep hidden fallback if decode fails */
+  }
+
+  if (jacketImg.getAttribute("data-track-id") !== trackId) return;
+
+  if (jacketImg.naturalWidth > 0) {
+    jacketImg.style.visibility = "visible";
+    jacketFallback.hidden = true;
+  } else {
+    jacketImg.hidden = true;
+    jacketFallback.hidden = false;
+  }
+}
+
+/** @returns {Promise<number>} total animated character count */
+async function applyContent(state) {
   const track = state.track;
   let index = 0;
   index = setOptionalChars(albumEl, track.album, index);
   index = fillChars(titleEl, track.title || "", index);
   index = setOptionalChars(artistEl, track.artist, index);
   durationEl.textContent = `${fmt(state.position)} / ${fmt(state.duration)}`;
-
-  if (track.coverUrl) {
-    jacketImg.hidden = false;
-    jacketFallback.hidden = true;
-    if (jacketImg.getAttribute("src") !== track.coverUrl) {
-      jacketImg.src = track.coverUrl;
-      if (jacketImg.decode) {
-        jacketImg.decode().catch(() => {});
-      }
-    }
-  } else {
-    jacketImg.hidden = true;
-    jacketImg.removeAttribute("src");
-    jacketFallback.hidden = false;
-  }
-
+  await setJacket(track.id, track.coverUrl || null);
   return index;
 }
 
@@ -150,23 +181,40 @@ function applyProgressOnly(state) {
 }
 
 async function runExitEnter(nextState) {
+  const targetId = nextState.track.id;
   const hadTrack = currentId != null;
 
   if (hadTrack) {
     clearAnimClasses();
     void card.offsetWidth;
     card.classList.add("is-exit");
-    await sleep(EXIT_MS);
+    const step = 40;
+    for (let t = 0; t < EXIT_MS; t += step) {
+      if (hasNewerTrack(targetId)) break;
+      await sleep(Math.min(step, EXIT_MS - t));
+    }
   }
+
+  /* Drop stale transition if a newer track arrived during exit */
+  if (hasNewerTrack(targetId)) return;
 
   stage.hidden = false;
   syncUiScale();
-  const charCount = applyContent(nextState);
-  currentId = nextState.track.id;
+  const charCount = await applyContent(nextState);
+  if (hasNewerTrack(targetId)) return;
+
+  currentId = targetId;
   restartEnterAnim();
-  await sleep(enterDurationMs(charCount));
+
+  const total = enterDurationMs(charCount);
+  const step = 40;
+  for (let t = 0; t < total; t += step) {
+    if (hasNewerTrack(targetId)) break;
+    await sleep(Math.min(step, total - t));
+  }
+
   card.classList.remove("is-enter");
-  setupMarquees();
+  if (!hasNewerTrack(targetId)) setupMarquees();
 }
 
 async function runHide() {
@@ -191,6 +239,8 @@ async function runHide() {
   titleEl.replaceChildren();
   artistEl.hidden = true;
   artistEl.replaceChildren();
+  jacketImg.removeAttribute("src");
+  jacketImg.removeAttribute("data-track-id");
 }
 
 async function flush() {

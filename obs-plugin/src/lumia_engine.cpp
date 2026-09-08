@@ -53,6 +53,26 @@ std::string wideToUtf8(const wchar_t *w)
 	WideCharToMultiByte(CP_UTF8, 0, w, -1, out.data(), n, nullptr, nullptr);
 	return out;
 }
+
+std::string pathToUtf8(const fs::path &p)
+{
+	return wideToUtf8(p.c_str());
+}
+
+fs::path pathFromUtf8(const std::string &s)
+{
+	return fs::path(utf8ToWide(s));
+}
+#else
+std::string pathToUtf8(const fs::path &p)
+{
+	return p.u8string();
+}
+
+fs::path pathFromUtf8(const std::string &s)
+{
+	return fs::u8path(s);
+}
 #endif
 
 } // namespace
@@ -83,7 +103,7 @@ std::string LumiaEngine::makeId(const std::string &path)
 
 bool LumiaEngine::isAudio(const std::string &name)
 {
-	auto ext = toLower(fs::path(name).extension().string());
+	auto ext = toLower(pathToUtf8(pathFromUtf8(name).extension()));
 	for (auto *e : kAudioExt) {
 		if (ext == e)
 			return true;
@@ -93,19 +113,20 @@ bool LumiaEngine::isAudio(const std::string &name)
 
 std::string LumiaEngine::findCover(const std::string &dir)
 {
+	fs::path dirPath = pathFromUtf8(dir);
 	for (auto *c : kCovers) {
-		fs::path p = fs::path(dir) / c;
+		fs::path p = dirPath / c;
 		if (fs::exists(p) && fs::is_regular_file(p))
-			return p.string();
+			return pathToUtf8(p);
 	}
 	std::error_code ec;
-	for (auto &ent : fs::directory_iterator(dir, ec)) {
+	for (auto &ent : fs::directory_iterator(dirPath, ec)) {
 		if (!ent.is_regular_file())
 			continue;
-		auto name = toLower(ent.path().filename().string());
+		auto name = toLower(pathToUtf8(ent.path().filename()));
 		for (auto *c : kCovers) {
 			if (name == c)
-				return ent.path().string();
+				return pathToUtf8(ent.path());
 		}
 	}
 	return {};
@@ -113,7 +134,7 @@ std::string LumiaEngine::findCover(const std::string &dir)
 
 std::string LumiaEngine::titleFromFile(const std::string &name)
 {
-	return fs::path(name).stem().string();
+	return pathToUtf8(pathFromUtf8(name).stem());
 }
 
 std::string LumiaEngine::artistFromFile(const std::string &path)
@@ -193,15 +214,15 @@ std::string LumiaEngine::jsonEscape(const std::string &s)
 void LumiaEngine::ingestPath(const std::string &path)
 {
 	std::error_code ec;
-	fs::path p = fs::weakly_canonical(fs::path(path), ec);
+	fs::path p = fs::weakly_canonical(pathFromUtf8(path), ec);
 	if (ec)
-		p = fs::path(path);
+		p = pathFromUtf8(path);
 
-	if (fs::is_regular_file(p) && isAudio(p.filename().string())) {
+	if (fs::is_regular_file(p) && isAudio(pathToUtf8(p.filename()))) {
 		LumiaTrack t;
-		t.filePath = p.string();
+		t.filePath = pathToUtf8(p);
 		t.id = makeId(t.filePath);
-		t.title = titleFromFile(p.filename().string());
+		t.title = titleFromFile(pathToUtf8(p.filename()));
 		t.artist = artistFromFile(t.filePath);
 		t.isSingle = true;
 		tracks_.push_back(std::move(t));
@@ -211,32 +232,32 @@ void LumiaEngine::ingestPath(const std::string &path)
 	if (!fs::is_directory(p))
 		return;
 
-	auto folderName = p.filename().string();
+	auto folderName = pathToUtf8(p.filename());
 	bool musicFolder = toLower(folderName) == "music";
 
 	std::vector<fs::path> audioFiles;
 	std::vector<fs::path> subdirs;
 	for (auto &ent : fs::directory_iterator(p, ec)) {
-		if (ent.is_regular_file() && isAudio(ent.path().filename().string()))
+		if (ent.is_regular_file() && isAudio(pathToUtf8(ent.path().filename())))
 			audioFiles.push_back(ent.path());
 		else if (ent.is_directory())
 			subdirs.push_back(ent.path());
 	}
 
 	std::sort(audioFiles.begin(), audioFiles.end(), [](const fs::path &a, const fs::path &b) {
-		return a.filename().string() < b.filename().string();
+		return pathToUtf8(a.filename()) < pathToUtf8(b.filename());
 	});
 	std::sort(subdirs.begin(), subdirs.end(), [](const fs::path &a, const fs::path &b) {
-		return a.filename().string() < b.filename().string();
+		return pathToUtf8(a.filename()) < pathToUtf8(b.filename());
 	});
 
 	if (!audioFiles.empty()) {
-		std::string cover = musicFolder ? std::string() : findCover(p.string());
+		std::string cover = musicFolder ? std::string() : findCover(pathToUtf8(p));
 		for (auto &fp : audioFiles) {
 			LumiaTrack t;
-			t.filePath = fp.string();
+			t.filePath = pathToUtf8(fp);
 			t.id = makeId(t.filePath);
-			t.title = titleFromFile(fp.filename().string());
+			t.title = titleFromFile(pathToUtf8(fp.filename()));
 			t.artist = artistFromFile(t.filePath);
 			if (musicFolder) {
 				t.isSingle = true;
@@ -252,7 +273,7 @@ void LumiaEngine::ingestPath(const std::string &path)
 
 	/* Parent folder: expand child albums / music */
 	for (auto &sub : subdirs)
-		ingestPath(sub.string());
+		ingestPath(pathToUtf8(sub));
 }
 
 bool LumiaEngine::setPlaylist(const std::vector<std::string> &paths, std::string &err)
@@ -447,12 +468,12 @@ void LumiaEngine::prev()
 	std::lock_guard<std::mutex> lock(mutex_);
 	if (queue_.empty())
 		return;
+	/* Restart current track if past the threshold (no generation bump — seek only) */
 	if (position_ > 3.0) {
 		position_ = 0;
 		seekTo_ = 0;
 		playing_ = true;
 		stopped_ = false;
-		bumpMediaUnlocked();
 		return;
 	}
 	if (index_ <= 0)
