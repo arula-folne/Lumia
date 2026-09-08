@@ -17,7 +17,7 @@ Windows（x64）向け OBS Studio ソースプラグイン **LumiaMusicView**。
 1. OBS Studio を終了する
 2. インストーラー（`.exe`）を実行し、OBS フォルダを確認する
 3. OBS を起動 → **ソース追加 → LumiaMusicView**
-4. プレイリストに音楽フォルダを追加し、必要なら Web エディタの Custom CSS を貼り付ける
+4. プレイリストに曲ファイルやアルバムフォルダを追加し、必要なら Web エディタの Custom CSS を貼り付ける
 
 詳細は同梱の `INSTALL.txt` を参照。
 

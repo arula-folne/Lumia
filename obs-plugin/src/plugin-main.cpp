@@ -625,32 +625,6 @@ static void lumia_enum_all(void *data, obs_source_enum_proc_t cb, void *param)
 	lumia_enum_active(data, cb, param);
 }
 
-static bool lumia_add_folder_changed(obs_properties_t *props, obs_property_t *property,
-				     obs_data_t *settings)
-{
-	UNUSED_PARAMETER(props);
-	UNUSED_PARAMETER(property);
-
-	const char *folder = obs_data_get_string(settings, "add_folder");
-	if (!folder || !*folder)
-		return false;
-
-	obs_data_array_t *arr = obs_data_get_array(settings, "playlist");
-	if (!arr) {
-		arr = obs_data_array_create();
-		obs_data_set_array(settings, "playlist", arr);
-	}
-
-	obs_data_t *item = obs_data_create();
-	obs_data_set_string(item, "value", folder);
-	obs_data_array_push_back(arr, item);
-	obs_data_release(item);
-	obs_data_array_release(arr);
-
-	obs_data_set_string(settings, "add_folder", "");
-	return true;
-}
-
 static bool lumia_fade_modified(obs_properties_t *props, obs_property_t *property,
 				obs_data_t *settings)
 {
@@ -669,19 +643,19 @@ static obs_properties_t *lumia_properties(void *data)
 {
 	UNUSED_PARAMETER(data);
 	obs_properties_t *props = obs_properties_create();
+	obs_property_t *p;
 
-	/* 表示サイズ → 幅 / 高さ */
-	obs_properties_t *display = obs_properties_create();
-	obs_properties_add_int(display, "width", obs_module_text("Width"), 100, 3840, 10);
-	obs_properties_add_int(display, "height", obs_module_text("Height"), 100, 2160, 10);
-	obs_properties_add_group(props, "display_group", obs_module_text("DisplayGroup"),
-				 OBS_GROUP_NORMAL, display);
+	/* Browser 同様: 幅 / 高さはグループなし */
+	obs_properties_add_int(props, "width", obs_module_text("Width"), 100, 3840, 10);
+	obs_properties_add_int(props, "height", obs_module_text("Height"), 100, 2160, 10);
 
+	/* VLC 同様: ループ / シャッフル / 動作 → プレイリスト */
+	obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
 	obs_properties_add_bool(props, "loop", obs_module_text("LoopPlaylist"));
 	obs_properties_add_bool(props, "shuffle", obs_module_text("ShufflePlaylist"));
 
-	obs_property_t *p = obs_properties_add_list(props, S_BEHAVIOR, obs_module_text("PlaybackBehavior"),
-						    OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	p = obs_properties_add_list(props, S_BEHAVIOR, obs_module_text("PlaybackBehavior"),
+				    OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.StopRestart"),
 				     S_BEHAVIOR_STOP_RESTART);
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.PauseUnpause"),
@@ -694,19 +668,14 @@ static obs_properties_t *lumia_properties(void *data)
 	obs_properties_add_float(props, S_FADE_IN, obs_module_text("FadeInSec"), 0.0, 5.0, 0.1);
 	obs_properties_add_float(props, S_FADE_OUT, obs_module_text("FadeOutSec"), 0.0, 5.0, 0.1);
 
-	/* 曲・ファイル → 単体 / アルバム */
-	obs_properties_t *tracks = obs_properties_create();
-	obs_properties_add_editable_list(tracks, "playlist", obs_module_text("PlaylistFiles"),
-					 OBS_EDITABLE_LIST_TYPE_FILES, LUMIA_PLAYLIST_FILTER,
+	/* VLC と同じ editable list。ファイル=曲単体、フォルダ=アルバムとして ingest */
+	obs_properties_add_editable_list(props, "playlist", obs_module_text("Playlist"),
+					 OBS_EDITABLE_LIST_TYPE_FILES_AND_URLS, LUMIA_PLAYLIST_FILTER,
 					 NULL);
-	obs_property_t *folder = obs_properties_add_path(tracks, "add_folder",
-							 obs_module_text("AddFolder"),
-							 OBS_PATH_DIRECTORY, NULL, NULL);
-	obs_property_set_modified_callback(folder, lumia_add_folder_changed);
-	obs_properties_add_group(props, "playlist_group", obs_module_text("Playlist"),
-				 OBS_GROUP_NORMAL, tracks);
 
-	obs_properties_add_text(props, "css", obs_module_text("CustomCSS"), OBS_TEXT_MULTILINE);
+	/* Browser と同じ Custom CSS（multiline + monospace） */
+	p = obs_properties_add_text(props, "css", obs_module_text("CustomCSS"), OBS_TEXT_MULTILINE);
+	obs_property_text_set_monospace(p, true);
 
 	return props;
 }
