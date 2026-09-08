@@ -10,12 +10,12 @@ const durationEl = document.getElementById("duration");
 
 const DESIGN_W = 1000;
 const DESIGN_H = 250;
-/* ~0.1.2 track-change animation timings */
 const EXIT_MS = 420;
 const JACKET_MS = 420;
 const TEXT_START_MS = 300;
 const CHAR_STAGGER_MS = 32;
 const CHAR_DUR_MS = 280;
+/** px/sec for overflow travel (excluding hold segments) */
 const MARQUEE_PX_PER_SEC = 38;
 
 let currentId = null;
@@ -118,19 +118,8 @@ function restartEnterAnim() {
   card.classList.add("is-enter");
 }
 
-async function preloadCover(coverUrl) {
-  if (!coverUrl) return;
-  try {
-    const img = new Image();
-    img.src = coverUrl;
-    if (img.decode) await img.decode();
-  } catch {
-    /* ignore decode errors */
-  }
-}
-
-/** @returns {Promise<number>} total animated character count */
-async function applyContent(state) {
+/** @returns {number} total animated character count */
+function applyContent(state) {
   const track = state.track;
   let index = 0;
   index = setOptionalChars(albumEl, track.album, index);
@@ -144,7 +133,7 @@ async function applyContent(state) {
     if (jacketImg.getAttribute("src") !== track.coverUrl) {
       jacketImg.src = track.coverUrl;
       if (jacketImg.decode) {
-        await jacketImg.decode().catch(() => {});
+        jacketImg.decode().catch(() => {});
       }
     }
   } else {
@@ -161,44 +150,23 @@ function applyProgressOnly(state) {
 }
 
 async function runExitEnter(nextState) {
-  /* Exit with OLD jacket → stay faded out while swapping → enter (no opacity snap). */
-  stage.hidden = false;
-  syncUiScale();
+  const hadTrack = currentId != null;
 
-  const coverReady = preloadCover(nextState.track && nextState.track.coverUrl);
-
-  if (currentId != null) {
+  if (hadTrack) {
     clearAnimClasses();
     void card.offsetWidth;
     card.classList.add("is-exit");
-
-    const step = 40;
-    for (let t = 0; t < EXIT_MS; t += step) {
-      if (pendingState !== null) break;
-      await sleep(Math.min(step, EXIT_MS - t));
-    }
-    /* Keep is-exit (opacity 0) — removing it here caused a visible flash/stutter */
+    await sleep(EXIT_MS);
   }
 
-  await coverReady;
-
-  if (pendingState !== null) {
-    return;
-  }
-
-  const charCount = await applyContent(nextState);
+  stage.hidden = false;
+  syncUiScale();
+  const charCount = applyContent(nextState);
   currentId = nextState.track.id;
   restartEnterAnim();
-
-  const total = enterDurationMs(charCount);
-  const step = 40;
-  for (let t = 0; t < total; t += step) {
-    if (pendingState !== null) break;
-    await sleep(Math.min(step, total - t));
-  }
-
+  await sleep(enterDurationMs(charCount));
   card.classList.remove("is-enter");
-  if (pendingState === null) setupMarquees();
+  setupMarquees();
 }
 
 async function runHide() {
@@ -207,7 +175,10 @@ async function runHide() {
     return;
   }
 
-  /* Instant hide for 動作 (visibility) — animation is track-change only */
+  clearAnimClasses();
+  void card.offsetWidth;
+  card.classList.add("is-exit");
+  await sleep(EXIT_MS);
   clearAnimClasses();
   stage.hidden = true;
   currentId = null;
@@ -277,14 +248,6 @@ window.addEventListener("resize", () => {
   }
 });
 
-document.body.dataset.anim = "fade-left";
-document.documentElement.style.setProperty("--lumia-anim-duration", `${EXIT_MS}ms`);
-document.documentElement.style.setProperty("--lumia-fade-in", `${JACKET_MS}ms`);
-document.documentElement.style.setProperty("--lumia-fade-out", `${EXIT_MS}ms`);
-document.documentElement.style.setProperty("--lumia-text-start", `${TEXT_START_MS}ms`);
-document.documentElement.style.setProperty("--lumia-char-stagger", `${CHAR_STAGGER_MS}ms`);
-document.documentElement.style.setProperty("--lumia-char-duration", `${CHAR_DUR_MS}ms`);
-
 syncUiScale();
 poll();
-setInterval(poll, 100);
+setInterval(poll, 250);

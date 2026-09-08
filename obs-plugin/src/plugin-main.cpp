@@ -23,12 +23,12 @@ MODULE_EXPORT const char *obs_module_description(void)
 
 #define DESIGN_WIDTH 1000
 #define DESIGN_HEIGHT 250
+/* Draw at 2× so 1000×250 stays sharp when placed on the canvas */
+#define RENDER_SCALE 2
 #define DEFAULT_WIDTH DESIGN_WIDTH
 #define DEFAULT_HEIGHT DESIGN_HEIGHT
 #define DEFAULT_CSS \
 	"body { background-color: rgba(0, 0, 0, 0); margin: 0px; overflow: hidden; }"
-/* Hold current audio through overlay exit, then swap (matches EXIT_MS) */
-#define TRACK_SWAP_HOLD_MS 420
 
 #define S_BEHAVIOR "playback_behavior"
 #define S_BEHAVIOR_STOP_RESTART "stop_restart"
@@ -56,8 +56,6 @@ struct lumia_source {
 
 	uint64_t synced_generation;
 	bool media_loaded;
-	uint64_t pending_play_ns; /* 0 = none; swap to next file after overlay exit */
-	char *pending_media_path; /* path to load when pending_play_ns fires */
 };
 
 static const char *lumia_get_name(void *unused)
@@ -100,21 +98,10 @@ static std::vector<std::string> lumia_read_playlist(obs_data_t *settings)
 	return paths;
 }
 
-static void lumia_clear_pending_media(struct lumia_source *ctx)
-{
-	if (!ctx)
-		return;
-	ctx->pending_play_ns = 0;
-	bfree(ctx->pending_media_path);
-	ctx->pending_media_path = nullptr;
-}
-
 static void lumia_load_media_file(struct lumia_source *ctx, const char *path, bool start_playback)
 {
 	if (!ctx->media || !path || !*path)
 		return;
-
-	lumia_clear_pending_media(ctx);
 
 	obs_data_t *settings = obs_data_create();
 	obs_data_set_bool(settings, "is_local_file", true);
@@ -137,18 +124,7 @@ static void lumia_load_media_file(struct lumia_source *ctx, const char *path, bo
 	}
 }
 
-static void lumia_schedule_media_swap(struct lumia_source *ctx, const char *path)
-{
-	if (!ctx || !path || !*path)
-		return;
-	bfree(ctx->pending_media_path);
-	ctx->pending_media_path = bstrdup(path);
-	ctx->pending_play_ns = os_gettime_ns() + (uint64_t)TRACK_SWAP_HOLD_MS * 1000000ULL;
-	/* Mark generation synced so video_tick does not re-enter every frame */
-	ctx->synced_generation = ctx->server ? ctx->server->engine().mediaGeneration() : 0;
-}
-
-static void lumia_sync_media(struct lumia_source *ctx, bool force_reload, bool defer_play)
+static void lumia_sync_media(struct lumia_source *ctx, bool force_reload)
 {
 	if (!ctx || !ctx->server || !ctx->media)
 		return;
@@ -159,39 +135,25 @@ static void lumia_sync_media(struct lumia_source *ctx, bool force_reload, bool d
 
 	std::string path;
 	if (!engine.getCurrentFile(path)) {
-		lumia_clear_pending_media(ctx);
 		obs_source_media_stop(ctx->media);
 		ctx->media_loaded = false;
 		return;
 	}
 
 	const bool gen_changed = (gen != ctx->synced_generation);
-	const bool should_play = state.playing && !state.stopped;
 	if (force_reload || gen_changed || !ctx->media_loaded) {
-		if (defer_play && should_play && gen_changed && ctx->media_loaded) {
-			enum obs_media_state ms = obs_source_media_get_state(ctx->media);
-			/* Keep current file playing through exit; swap only when hold ends.
-			   If media already ended/stopped, load immediately (no silence gap). */
-			if (ms == OBS_MEDIA_STATE_PLAYING || ms == OBS_MEDIA_STATE_PAUSED) {
-				lumia_schedule_media_swap(ctx, path.c_str());
-				return;
-			}
-		}
-		lumia_load_media_file(ctx, path.c_str(), should_play);
+		lumia_load_media_file(ctx, path.c_str(), state.playing && !state.stopped);
 		return;
 	}
 
 	enum obs_media_state ms = obs_source_media_get_state(ctx->media);
 	if (state.stopped) {
-		lumia_clear_pending_media(ctx);
 		if (ms != OBS_MEDIA_STATE_STOPPED && ms != OBS_MEDIA_STATE_NONE)
 			obs_source_media_stop(ctx->media);
 		return;
 	}
 
 	if (state.playing) {
-		if (ctx->pending_play_ns)
-			return;
 		if (ms == OBS_MEDIA_STATE_STOPPED || ms == OBS_MEDIA_STATE_ENDED ||
 		    ms == OBS_MEDIA_STATE_NONE) {
 			obs_source_media_restart(ctx->media);
@@ -199,7 +161,6 @@ static void lumia_sync_media(struct lumia_source *ctx, bool force_reload, bool d
 			obs_source_media_play_pause(ctx->media, false);
 		}
 	} else {
-		lumia_clear_pending_media(ctx);
 		if (ms == OBS_MEDIA_STATE_PLAYING)
 			obs_source_media_play_pause(ctx->media, true);
 	}
@@ -207,12 +168,14 @@ static void lumia_sync_media(struct lumia_source *ctx, bool force_reload, bool d
 
 static uint32_t lumia_pixel_width(const struct lumia_source *ctx)
 {
-	return ctx && ctx->width ? ctx->width : DEFAULT_WIDTH;
+	uint32_t w = ctx && ctx->width ? ctx->width : DEFAULT_WIDTH;
+	return w * RENDER_SCALE;
 }
 
 static uint32_t lumia_pixel_height(const struct lumia_source *ctx)
 {
-	return ctx && ctx->height ? ctx->height : DEFAULT_HEIGHT;
+	uint32_t h = ctx && ctx->height ? ctx->height : DEFAULT_HEIGHT;
+	return h * RENDER_SCALE;
 }
 
 static void lumia_configure_browser_settings(obs_data_t *settings, struct lumia_source *ctx,
@@ -236,28 +199,9 @@ static void lumia_update_browser(struct lumia_source *ctx)
 	if (!ctx->browser || !ctx->server || ctx->server->port() <= 0)
 		return;
 
+	obs_data_t *settings = obs_source_get_settings(ctx->browser);
 	struct dstr url = {0};
 	dstr_printf(&url, "%s/overlay/", ctx->server->baseUrl().c_str());
-	const char *css =
-		(ctx->custom_css && *ctx->custom_css) ? ctx->custom_css : DEFAULT_CSS;
-	const int w = (int)lumia_pixel_width(ctx);
-	const int h = (int)lumia_pixel_height(ctx);
-
-	obs_data_t *settings = obs_source_get_settings(ctx->browser);
-	const char *cur_url = obs_data_get_string(settings, "url");
-	const char *cur_css = obs_data_get_string(settings, "css");
-	const bool unchanged =
-		cur_url && strcmp(cur_url, url.array) == 0 && cur_css &&
-		strcmp(cur_css, css) == 0 && obs_data_get_int(settings, "width") == w &&
-		obs_data_get_int(settings, "height") == h &&
-		obs_data_get_int(settings, "fps") == 60;
-
-	if (unchanged) {
-		obs_data_release(settings);
-		dstr_free(&url);
-		return;
-	}
-
 	lumia_configure_browser_settings(settings, ctx, url.array);
 	obs_source_update(ctx->browser, settings);
 	obs_data_release(settings);
@@ -382,27 +326,21 @@ static void lumia_apply_playlist(struct lumia_source *ctx, obs_data_t *settings)
 	if (!ctx->server)
 		return;
 
-	auto &engine = ctx->server->engine();
+	ctx->server->engine().setShuffle(ctx->shuffle);
+	ctx->server->engine().setLoop(ctx->loop);
+
 	auto paths = lumia_read_playlist(settings);
-	const bool paths_changed = !engine.playlistPathsEqual(paths);
-
-	engine.setLoop(ctx->loop);
-	engine.setShuffle(ctx->shuffle);
-
 	std::string err;
-	if (!engine.setPlaylist(paths, err)) {
+	if (!ctx->server->engine().setPlaylist(paths, err)) {
 		blog(LOG_WARNING, "[Lumia] playlist: %s", err.c_str());
 		obs_source_media_ended(ctx->source);
-		lumia_sync_media(ctx, true, false);
+		lumia_sync_media(ctx, true);
 		return;
 	}
 
-	/* Only stop/reload media when the playlist contents actually changed */
-	if (!paths_changed)
-		return;
-
+	/* Load first track but stay stopped (VLC does not autoplay on list edit by default for us). */
 	ctx->server->engine().stop();
-	lumia_sync_media(ctx, true, false);
+	lumia_sync_media(ctx, true);
 	obs_source_media_ended(ctx->source);
 }
 
@@ -414,11 +352,11 @@ static void lumia_activate(void *data)
 
 	if (ctx->behavior == BEHAVIOR_STOP_RESTART) {
 		ctx->server->engine().restart();
-		lumia_sync_media(ctx, true, false);
+		lumia_sync_media(ctx, true);
 		obs_source_media_started(ctx->source);
 	} else if (ctx->behavior == BEHAVIOR_PAUSE_UNPAUSE) {
 		ctx->server->engine().play();
-		lumia_sync_media(ctx, false, false);
+		lumia_sync_media(ctx, false);
 		obs_source_media_started(ctx->source);
 	}
 }
@@ -431,11 +369,11 @@ static void lumia_deactivate(void *data)
 
 	if (ctx->behavior == BEHAVIOR_STOP_RESTART) {
 		ctx->server->engine().stop();
-		lumia_sync_media(ctx, false, false);
+		lumia_sync_media(ctx, false);
 		obs_source_media_ended(ctx->source);
 	} else if (ctx->behavior == BEHAVIOR_PAUSE_UNPAUSE) {
 		ctx->server->engine().pause();
-		lumia_sync_media(ctx, false, false);
+		lumia_sync_media(ctx, false);
 	}
 }
 
@@ -452,8 +390,6 @@ static void *lumia_create(obs_data_t *settings, obs_source_t *source)
 	ctx->server = nullptr;
 	ctx->synced_generation = 0;
 	ctx->media_loaded = false;
-	ctx->pending_play_ns = 0;
-	ctx->pending_media_path = nullptr;
 
 	lumia_ensure_server(ctx);
 	lumia_ensure_media(ctx);
@@ -482,7 +418,6 @@ static void lumia_destroy(void *data)
 		delete ctx->server;
 		ctx->server = nullptr;
 	}
-	lumia_clear_pending_media(ctx);
 	bfree(ctx->custom_css);
 	bfree(ctx);
 }
@@ -520,21 +455,6 @@ static void lumia_video_tick(void *data, float seconds)
 	auto &engine = ctx->server->engine();
 	auto state = engine.snapshot();
 
-	if (ctx->pending_play_ns && os_gettime_ns() >= ctx->pending_play_ns) {
-		char *path = ctx->pending_media_path;
-		ctx->pending_media_path = nullptr;
-		ctx->pending_play_ns = 0;
-		const bool should_play = state.playing && !state.stopped;
-		if (path && *path)
-			lumia_load_media_file(ctx, path, should_play);
-		bfree(path);
-		return;
-	}
-
-	/* While holding previous audio for exit anim, ignore ENDED on that file */
-	if (ctx->pending_play_ns)
-		return;
-
 	if (ctx->media_loaded) {
 		int64_t t = obs_source_media_get_time(ctx->media);
 		int64_t d = obs_source_media_get_duration(ctx->media);
@@ -544,7 +464,7 @@ static void lumia_video_tick(void *data, float seconds)
 		enum obs_media_state ms = obs_source_media_get_state(ctx->media);
 		if (ms == OBS_MEDIA_STATE_ENDED && state.playing && !state.stopped) {
 			engine.next();
-			lumia_sync_media(ctx, true, true);
+			lumia_sync_media(ctx, true);
 			if (engine.snapshot().playing)
 				obs_source_media_started(ctx->source);
 			else
@@ -554,7 +474,7 @@ static void lumia_video_tick(void *data, float seconds)
 	}
 
 	if (engine.mediaGeneration() != ctx->synced_generation)
-		lumia_sync_media(ctx, true, true);
+		lumia_sync_media(ctx, true);
 }
 
 /* ---- Media controls (same roles as VLC) ---- */
@@ -567,15 +487,15 @@ static void lumia_media_play_pause(void *data, bool pause)
 
 	if (pause) {
 		ctx->server->engine().pause();
-		lumia_sync_media(ctx, false, false);
+		lumia_sync_media(ctx, false);
 	} else {
 		auto st = ctx->server->engine().snapshot();
 		if (st.stopped || !st.hasTrack) {
 			ctx->server->engine().restart();
-			lumia_sync_media(ctx, true, false);
+			lumia_sync_media(ctx, true);
 		} else {
 			ctx->server->engine().play();
-			lumia_sync_media(ctx, false, false);
+			lumia_sync_media(ctx, false);
 		}
 		obs_source_media_started(ctx->source);
 	}
@@ -587,7 +507,7 @@ static void lumia_media_restart(void *data)
 	if (!ctx || !ctx->server)
 		return;
 	ctx->server->engine().restart();
-	lumia_sync_media(ctx, true, false);
+	lumia_sync_media(ctx, true);
 	obs_source_media_started(ctx->source);
 }
 
@@ -597,7 +517,7 @@ static void lumia_media_stop(void *data)
 	if (!ctx || !ctx->server)
 		return;
 	ctx->server->engine().stop();
-	lumia_sync_media(ctx, false, false);
+	lumia_sync_media(ctx, false);
 	obs_source_media_ended(ctx->source);
 }
 
@@ -607,7 +527,7 @@ static void lumia_media_next(void *data)
 	if (!ctx || !ctx->server)
 		return;
 	ctx->server->engine().next();
-	lumia_sync_media(ctx, true, true);
+	lumia_sync_media(ctx, true);
 	if (ctx->server->engine().snapshot().playing)
 		obs_source_media_started(ctx->source);
 }
@@ -618,7 +538,7 @@ static void lumia_media_previous(void *data)
 	if (!ctx || !ctx->server)
 		return;
 	ctx->server->engine().prev();
-	lumia_sync_media(ctx, true, true);
+	lumia_sync_media(ctx, true);
 	obs_source_media_started(ctx->source);
 }
 
@@ -701,10 +621,6 @@ static obs_properties_t *lumia_properties(void *data)
 	UNUSED_PARAMETER(data);
 	obs_properties_t *props = obs_properties_create();
 
-	/* Defer Apply so CSS typing does not reload the overlay every keystroke */
-	obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
-
-	/* Ver.0.1.2 layout / labels */
 	obs_properties_add_bool(props, "loop", obs_module_text("LoopPlaylist"));
 	obs_properties_add_bool(props, "shuffle", obs_module_text("ShufflePlaylist"));
 
@@ -717,11 +633,13 @@ static obs_properties_t *lumia_properties(void *data)
 	obs_property_list_add_string(p, obs_module_text("PlaybackBehavior.AlwaysPlay"),
 				     S_BEHAVIOR_ALWAYS_PLAY);
 
+	/* Files and folders (album dirs) via the same playlist list */
 	obs_properties_add_editable_list(props, "playlist", obs_module_text("Playlist"),
 					 OBS_EDITABLE_LIST_TYPE_FILES_AND_URLS, NULL, NULL);
 	obs_properties_add_int(props, "width", obs_module_text("Width"), 100, 3840, 1);
 	obs_properties_add_int(props, "height", obs_module_text("Height"), 100, 2160, 1);
 	obs_properties_add_text(props, "css", obs_module_text("CustomCSS"), OBS_TEXT_MULTILINE);
+
 	return props;
 }
 
