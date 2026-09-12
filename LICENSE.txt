@@ -17,8 +17,8 @@ LumiaMusicView — ライセンスについて
 本ファイル後半に、公式の英語原文（GNU GPL Version 3）を掲載します。
 法的な効力は英語原文に基づきます。不明点は原文を優先してください。
 
-リポジトリ: https://github.com/arula-folne/Lumia
-デザイン / Custom CSS: https://folne.net/apps/lumia
+リポジトリ: https://github.com/arula-folne/Lumia-Music
+デザイン / Custom CSS: https://www.folne.net/apps/lumia-music
 
 ------------------------------------
 Official English license text follows

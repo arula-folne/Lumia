@@ -13,8 +13,8 @@
 
 #define MyAppName "LumiaMusicView"
 #define MyAppPublisher "folne"
-#define MyAppURL "https://folne.net/apps/lumia"
-#define MyAppRepo "https://github.com/arula-folne/Lumia"
+#define MyAppURL "https://www.folne.net/apps/lumia-music"
+#define MyAppRepo "https://github.com/arula-folne/Lumia-Music"
 
 [Setup]
 AppId={{A8F3C2E1-7B4D-4E9A-9C1F-2D6E8B0A5F31}

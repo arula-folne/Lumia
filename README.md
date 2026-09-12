@@ -1,16 +1,16 @@
-# Lumia
+# Lumia Music
 
-**Live × Music × View**
+**Local Music Viewer**
 
 Windows（x64）向け OBS Studio ソースプラグイン **LumiaMusicView**。  
 ローカルの音楽フォルダを、ジャケット・アルバム・曲名・アーティスト付きオーバーレイとして配信に載せられます（別途 Node サーバ不要）。
 
 ## ダウンロード
 
-[Releases](https://github.com/arula-folne/Lumia/releases) から Windows 用インストーラー  
+[Releases](https://github.com/arula-folne/Lumia-Music/releases) から Windows 用インストーラー  
 （`LumiaMusicView-*-windows-x64.exe`）を入手してください。
 
-デザイン / Custom CSS エディタ: [folne.net/apps/lumia](https://folne.net/apps/lumia)
+デザイン / Custom CSS エディタ: [folne.net/apps/lumia-music](https://www.folne.net/apps/lumia-music)
 
 ## インストール（エンドユーザー）
 
@@ -63,7 +63,7 @@ install-to-obs.bat
 OBS Studio source plugin **LumiaMusicView** for Windows (x64).  
 Local music folders become an on-stream overlay — jacket, album, title, and artist — without a separate Node server.
 
-Download the installer from [Releases](https://github.com/arula-folne/Lumia/releases) (`LumiaMusicView-*-windows-x64.exe`).  
-Design / Custom CSS: [folne.net/apps/lumia](https://folne.net/apps/lumia)
+Download the installer from [Releases](https://github.com/arula-folne/Lumia-Music/releases) (`LumiaMusicView-*-windows-x64.exe`).  
+Design / Custom CSS: [folne.net/apps/lumia-music](https://www.folne.net/apps/lumia-music)
 
 License: [GPL-3.0](LICENSE.txt)

@@ -1,7 +1,7 @@
-Lumia / LumiaMusicView
-======================
+Lumia Music / LumiaMusicView
+============================
 
-Live × Music × View
+Local Music Viewer
 
 Windows（x64）向け OBS Studio ソースプラグインです。
 ローカル音楽フォルダをジャケット・アルバム・曲名・アーティスト付きで
@@ -9,11 +9,11 @@ Windows（x64）向け OBS Studio ソースプラグインです。
 
 
 【ダウンロード】
-https://github.com/arula-folne/Lumia/releases
+https://github.com/arula-folne/Lumia-Music/releases
 ファイル名: LumiaMusicView-*-windows-x64.exe
 
 デザイン / Custom CSS:
-https://folne.net/apps/lumia
+https://www.folne.net/apps/lumia-music
 
 
 【インストール】
@@ -29,7 +29,7 @@ GNU GPL-3.0 — LICENSE.txt（日本語説明を先頭に掲載）
 
 
 【リポジトリ】
-https://github.com/arula-folne/Lumia
+https://github.com/arula-folne/Lumia-Music
 
 
 --------------------------------------------------
